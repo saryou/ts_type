@@ -8,13 +8,12 @@ from contextlib import contextmanager
 from collections import defaultdict
 from dataclasses import fields as dc_fields, is_dataclass
 from importlib import import_module
-from typing import Optional, Any, Type, Callable, Union, ForwardRef, TypeVar, Literal, GenericAlias, Iterable, overload
+from types import GenericAlias
+from typing import Optional, Any, Type, Callable, Union, ForwardRef, TypeVar,\
+    Iterable, overload, Literal, List, Dict, Set, Tuple
 
 
 T = TypeVar('T')
-U = TypeVar('U')
-V = TypeVar('V')
-W = TypeVar('W')
 
 
 class Context:
@@ -25,7 +24,7 @@ class Context:
         self.indent_unit = indent_unit
 
     def clone(self, **override) -> 'Context':
-        kwargs: dict[str, Any] = dict(
+        kwargs: Dict[str, Any] = dict(
             indent_level=self.indent_level,
             indent_unit=self.indent_unit)
         kwargs.update(override)
@@ -113,8 +112,8 @@ class ReferenceNode(TypeNode):
 
 class ObjectNode(TypeNode):
     def __init__(self,
-                 attrs: dict[str, TypeNode],
-                 omissible: set[str]):
+                 attrs: Dict[str, TypeNode],
+                 omissible: Set[str]):
         self.attrs = attrs
         self.omissible = omissible
 
@@ -137,7 +136,7 @@ class ObjectNode(TypeNode):
 
 
 class TupleNode(TypeNode):
-    def __init__(self, of: list[TypeNode]):
+    def __init__(self, of: List[TypeNode]):
         self.of = of
 
     def render(self, context: Context):
@@ -185,18 +184,18 @@ class DictNode(TypeNode):
 
 
 class UnionNode(TypeNode):
-    def __init__(self, of: list[TypeNode]):
+    def __init__(self, of: List[TypeNode]):
         self.of = self._unique(self._flatten(of))
 
-    def _flatten(self, of: list[TypeNode]) -> Iterable[TypeNode]:
+    def _flatten(self, of: List[TypeNode]) -> Iterable[TypeNode]:
         for node in of:
             if isinstance(node, UnionNode):
                 yield from self._flatten(node.of)
             else:
                 yield node
 
-    def _unique(self, of: Iterable[TypeNode]) -> list[TypeNode]:
-        ret: list[TypeNode] = []
+    def _unique(self, of: Iterable[TypeNode]) -> List[TypeNode]:
+        ret: List[TypeNode] = []
         for node in of:
             if all(n != node for n in ret):
                 ret.append(node)
@@ -212,8 +211,8 @@ class UnionNode(TypeNode):
             and self.of == other.of
 
 
-def _render_definitions(definitions: dict[str, TypeNode],
-                        ids_to_export: set[str]) -> str:
+def _render_definitions(definitions: Dict[str, TypeNode],
+                        ids_to_export: Set[str]) -> str:
     context = Context()
 
     def export(key: str) -> str:
@@ -229,16 +228,16 @@ class NodeBuilder:
     def __init__(self,
                  default: Optional[Callable[
                      ['NodeBuilder', Any], TypeNode]] = None) -> None:
-        self._modules: dict[str, Any] = {}
-        self._definitions: dict[str, TypeNode] = {}
-        self._stack: list[tuple[str, str, Any]] = []
+        self._modules: Dict[str, Any] = {}
+        self._definitions: Dict[str, TypeNode] = {}
+        self._stack: List[Tuple[str, str, Any]] = []
         self._default = default
 
     @property
-    def definitions(self) -> dict[str, Any]:
+    def definitions(self) -> Dict[str, Any]:
         return self._definitions
 
-    def render_definitions(self, ids_to_export: set[str] = set()) -> str:
+    def render_definitions(self, ids_to_export: Set[str] = set()) -> str:
         return _render_definitions(self._definitions, ids_to_export)
 
     def type_to_node(self, t: Any, allow_unknown: bool = False) -> TypeNode:
@@ -283,8 +282,9 @@ class NodeBuilder:
         elif isinstance(t, TypeVar):
             return self.type_to_node(self._resolve_typevar(t), unknown)
         elif isinstance(t, ForwardRef):
-            return self.type_to_node(
-                t._evaluate(self._current_module.__dict__, None, set()), unknown)
+            _globals = self._current_module.__dict__
+            evaluated = t._evaluate(_globals, None, set())  # type: ignore
+            return self.type_to_node(evaluated, unknown)
         elif isinstance(t, NodeCompatible):
             return t.convert_to_node(self)
         elif isinstance(t, type):
@@ -400,7 +400,8 @@ def _resolve_typevar(
 
     mro = list(reversed(cls.mro()))
     arg_index: Optional[int] = None
-    if found := _find_typevar(mro[mro_index:], t):
+    found = _find_typevar(mro[mro_index:], t)
+    if found:
         mro_index = mro_index + found[0] + 1
         arg_index = found[1]
 
@@ -425,7 +426,7 @@ def _resolve_typevar(
         f'({cls.__module__}.{cls.__qualname__})')
 
 
-def _find_typevar(mro: list[type], t: TypeVar) -> Optional[tuple[int, int]]:
+def _find_typevar(mro: List[type], t: TypeVar) -> Optional[Tuple[int, int]]:
     for i, m in enumerate(mro):
         for base in getattr(m, '__orig_bases__', []):
             for _i, p in enumerate(getattr(base, '__parameters__', [])):
@@ -447,7 +448,7 @@ class NodeCompatible:
 
 class TypeDefinitionGenerator:
     def __init__(self):
-        self.types: dict[str, dict[str, Any]] = defaultdict(dict)
+        self.types: Dict[str, Dict[str, Any]] = defaultdict(dict)
 
     @overload
     def add(self,
@@ -481,7 +482,7 @@ class TypeDefinitionGenerator:
         filepaths = {p for p in basedir.glob('**/*.gen.ts')}
         for _filepath, types in self.types.items():
             builder = builder_cls()
-            defs: dict[str, TypeNode] = dict()
+            defs: Dict[str, TypeNode] = dict()
 
             for name, value in types.items():
                 if isinstance(value, TypeNode):

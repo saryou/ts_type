@@ -121,7 +121,7 @@ class ObjectNode(TypeNode):
         c = context.clone(indent_level=context.indent_level + 1)
         return '\n'.join([
             '{',
-            *[f'{c.indent}{k}{self._omissible_sign(k)}: {v.render(c)};'
+            *[f'{c.indent}"{k}"{self._omissible_sign(k)}: {v.render(c)};'
               for k, v in self.attrs.items()],
             f'{context.indent}}}',
         ])

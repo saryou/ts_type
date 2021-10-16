@@ -253,7 +253,7 @@ def _render_definitions(ref_names: List[str],
     def render(k: str) -> str:
         ref = ReferenceNode(k)
         node = ctx.definitions[k]
-        lhs = f'{export(k)}type {ref.render(ctx)}';
+        lhs = f'{export(k)}type {ref.render(ctx)}'
         rhs = f'{node.render(ctx)};'
         return f'{lhs} = {rhs}'
 
@@ -293,7 +293,6 @@ class NodeBuilder:
 
         origin = getattr(t, '__origin__', None)
         args = getattr(t, '__args__', tuple())
-        params = getattr(t, '__parameters__', tuple())
 
         if origin is Union:
             assert args
@@ -378,8 +377,7 @@ class NodeBuilder:
 
             try:
                 with self._begin_module_context(t):
-                    type_node  = define()
-
+                    type_node = define()
                     if (params := getattr(t, '__parameters__', None)):
                         type_node.add_generic_params(
                             [TypeVariableNode(p) for p in params])

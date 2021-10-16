@@ -10,7 +10,7 @@ from dataclasses import fields as dc_fields, is_dataclass
 from importlib import import_module
 from types import GenericAlias
 from typing import Optional, Any, Type, Callable, Union, ForwardRef, TypeVar,\
-    Iterable, overload, Literal, List, Dict, Set, Tuple
+    Iterable, overload, Literal, List, Dict, Set, Tuple, Sequence
 
 
 T = TypeVar('T')
@@ -36,6 +36,16 @@ class Context:
 
 
 class TypeNode:
+    def get_generic_params(self) -> List['TypeVariableNode']:
+        return getattr(self, '__params__', [])
+
+    def add_generic_params(self, variables: list['TypeVariableNode']):
+        self.__params__ = self.get_generic_params()
+        self.__params__.extend(variables)
+
+    def render_generics(self, context: Context) -> str:
+        return _render_typevars(context, self.get_generic_params())
+
     def render(self, context: Context) -> str:
         raise NotImplementedError()
 
@@ -98,16 +108,32 @@ class LiteralNode(BuiltinTypeNode):
             and self.literal == other.literal
 
 
-class ReferenceNode(TypeNode):
-    def __init__(self, identifier: str):
-        self.identifier = identifier
+class TypeVariableNode(BuiltinTypeNode):
+    def __init__(self, typevar: TypeVar):
+        self.typevar = typevar
 
     def render(self, context: Context) -> str:
-        return self.identifier
+        return self.typevar.__name__
+
+    def __eq__(self, other):
+        return super().__eq__(other)\
+            and self.typevar == other.typevar
+
+
+class ReferenceNode(TypeNode):
+    def __init__(self,
+                 identifier: str,
+                 typevars: List[TypeNode] = []):
+        self.identifier = identifier
+        self.typevars = typevars
+
+    def render(self, context: Context) -> str:
+        return self.identifier + _render_typevars(context, self.typevars)
 
     def __eq__(self, other):
         return isinstance(other, ReferenceNode)\
-            and self.identifier == other.identifier
+            and self.identifier == other.identifier\
+            and self.typevars == other.typevars
 
 
 class ObjectNode(TypeNode):
@@ -213,15 +239,21 @@ class UnionNode(TypeNode):
 
 def _render_definitions(definitions: Dict[str, TypeNode],
                         ids_to_export: Set[str]) -> str:
-    context = Context()
+    ctx = Context()
 
     def export(key: str) -> str:
         return 'export ' if key in ids_to_export else ''
 
     return '\n\n'.join([
-        f'{export(k)}type {k} = {v.render(context)};'
+        f'{export(k)}type {k}{v.render_generics(ctx)} = {v.render(ctx)};'
         for k, v in definitions.items()
     ])
+
+
+def _render_typevars(context: Context, typevars: Sequence[TypeNode]) -> str:
+    defs = [n.render(context) for n in typevars]
+    return ''.join(['<', ', '.join(defs), '>'])\
+        if typevars else ''
 
 
 class NodeBuilder:
@@ -254,6 +286,7 @@ class NodeBuilder:
 
         origin = getattr(t, '__origin__', None)
         args = getattr(t, '__args__', tuple())
+        params = getattr(t, '__parameters__', tuple())
 
         if origin is Union:
             assert args
@@ -277,10 +310,18 @@ class NodeBuilder:
         elif origin is Literal:
             assert len(args) == 1
             return self._literal_to_node(args[0])
+        elif is_dataclass(origin):
+            return self._dataclass_to_node(
+                origin,
+                unknown,
+                typevars=[self.type_to_node(t) for t in args])
         elif isinstance(t, str):
             return self.type_to_node(self._resolve_annotation(t), unknown)
         elif isinstance(t, TypeVar):
-            return self.type_to_node(self._resolve_typevar(t), unknown)
+            try:
+                return self.type_to_node(self._resolve_typevar(t), unknown)
+            except AssertionError:
+                return TypeVariableNode(typevar=t)
         elif isinstance(t, ForwardRef):
             _globals = self._current_module.__dict__
             evaluated = t._evaluate(_globals, None, set())  # type: ignore
@@ -300,20 +341,28 @@ class NodeBuilder:
                 return self.define_ref_node(t, lambda: UnionNode(
                     [self._literal_to_node(i) for i in t]))
             elif is_dataclass(t):
-                return self.define_ref_node(t, lambda: ObjectNode(
-                    attrs={f.name: self.type_to_node(f.type, unknown)
-                           for f in dc_fields(t)},
-                    omissible=set()))
+                return self._dataclass_to_node(t, unknown)
 
         return self.default(t)
 
-    def define_ref_node(self,
-                        type_or_id: Union[type, str],
-                        define: Callable[[], TypeNode]) -> ReferenceNode:
-        _id = '.'.join([type_or_id.__module__, type_or_id.__qualname__])\
-            if isinstance(type_or_id, type) else\
-            type_or_id
+    def _dataclass_to_node(self,
+                           t: Any,
+                           unknown: bool,
+                           typevars: list[TypeNode] = []) -> TypeNode:
+        assert is_dataclass(t)
+        return self.define_ref_node(
+            t,
+            lambda: ObjectNode(
+                attrs={f.name: self.type_to_node(f.type, unknown)
+                       for f in dc_fields(t)},
+                omissible=set()),
+            typevars)
 
+    def define_ref_node(self,
+                        t: type,
+                        define: Callable[[], TypeNode],
+                        ref_typevars: List[TypeNode] = []) -> ReferenceNode:
+        _id = '.'.join([t.__module__, t.__qualname__])
         _id = re.sub(r'\.', '__', _id)
 
         defs = self._definitions
@@ -321,16 +370,18 @@ class NodeBuilder:
             defs[_id] = TypeNode()
 
             try:
-                if isinstance(type_or_id, type):
-                    with self._begin_module_context(type_or_id):
-                        defs[_id] = define()
-                else:
-                    defs[_id] = define()
+                with self._begin_module_context(t):
+                    type_node  = define()
+
+                    if (params := getattr(t, '__parameters__', None)):
+                        type_node.add_generic_params(
+                            [TypeVariableNode(p) for p in params])
+                defs[_id] = type_node
             except Exception:
                 del defs[_id]
                 raise
 
-        return ReferenceNode(_id)
+        return ReferenceNode(_id, ref_typevars)
 
     def _literal_to_node(self,
                          value: Union[int, bool, str, Enum]) -> LiteralNode:

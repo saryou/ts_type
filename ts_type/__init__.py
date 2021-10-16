@@ -18,13 +18,16 @@ T = TypeVar('T')
 
 class Context:
     def __init__(self,
+                 definitions: Dict[str, 'TypeNode'],
                  indent_level: int = 0,
-                 indent_unit: str = ' ' * 4):
+                 indent_unit: str = ' ' * 4,):
+        self.definitions = definitions
         self.indent_level = indent_level
         self.indent_unit = indent_unit
 
     def clone(self, **override) -> 'Context':
         kwargs: Dict[str, Any] = dict(
+            definitions=self.definitions,
             indent_level=self.indent_level,
             indent_unit=self.indent_unit)
         kwargs.update(override)
@@ -34,6 +37,11 @@ class Context:
     def indent(self) -> str:
         return self.indent_unit * self.indent_level
 
+    def resolve_ref(self, node: 'TypeNode') -> 'TypeNode':
+        if isinstance(node, ReferenceNode):
+            return self.resolve_ref(self.definitions[node.identifier])
+        return node
+
 
 class TypeNode:
     def get_generic_params(self) -> List['TypeVariableNode']:
@@ -42,9 +50,6 @@ class TypeNode:
     def add_generic_params(self, variables: list['TypeVariableNode']):
         self.__params__ = self.get_generic_params()
         self.__params__.extend(variables)
-
-    def render_generics(self, context: Context) -> str:
-        return _render_typevars(context, self.get_generic_params())
 
     def render(self, context: Context) -> str:
         raise NotImplementedError()
@@ -128,7 +133,9 @@ class ReferenceNode(TypeNode):
         self.typevars = typevars
 
     def render(self, context: Context) -> str:
-        return self.identifier + _render_typevars(context, self.typevars)
+        ref_typevars = context.resolve_ref(self).get_generic_params()
+        typevars = [*self.typevars, *ref_typevars[len(self.typevars):]]
+        return self.identifier + _render_typevars(context, typevars)
 
     def __eq__(self, other):
         return isinstance(other, ReferenceNode)\
@@ -237,17 +244,20 @@ class UnionNode(TypeNode):
             and self.of == other.of
 
 
-def _render_definitions(definitions: Dict[str, TypeNode],
-                        ids_to_export: Set[str]) -> str:
-    ctx = Context()
-
+def _render_definitions(ref_names: List[str],
+                        ids_to_export: Set[str],
+                        ctx: Context) -> str:
     def export(key: str) -> str:
         return 'export ' if key in ids_to_export else ''
 
-    return '\n\n'.join([
-        f'{export(k)}type {k}{v.render_generics(ctx)} = {v.render(ctx)};'
-        for k, v in definitions.items()
-    ])
+    def render(k: str) -> str:
+        ref = ReferenceNode(k)
+        node = ctx.definitions[k]
+        lhs = f'{export(k)}type {ref.render(ctx)}';
+        rhs = f'{node.render(ctx)};'
+        return f'{lhs} = {rhs}'
+
+    return '\n\n'.join([render(k) for k in ref_names])
 
 
 def _render_typevars(context: Context, typevars: Sequence[TypeNode]) -> str:
@@ -268,9 +278,6 @@ class NodeBuilder:
     @property
     def definitions(self) -> Dict[str, Any]:
         return self._definitions
-
-    def render_definitions(self, ids_to_export: Set[str] = set()) -> str:
-        return _render_definitions(self._definitions, ids_to_export)
 
     def type_to_node(self, t: Any, allow_unknown: bool = False) -> TypeNode:
         try:
@@ -382,6 +389,9 @@ class NodeBuilder:
                 raise
 
         return ReferenceNode(_id, ref_typevars)
+
+    def update_definitions(self, definitions: Dict[str, TypeNode]):
+        self._definitions.update(definitions)
 
     def _literal_to_node(self,
                          value: Union[int, bool, str, Enum]) -> LiteralNode:
@@ -548,10 +558,14 @@ class TypeDefinitionGenerator:
             if not os.path.exists(_dirname):
                 os.makedirs(_dirname)
 
+            builder.update_definitions(defs)
+
             with open(filepath, 'w') as f:
-                f.write(_render_definitions(defs, set(defs.keys())))
-                f.write('\n\n\n')
-                f.write(builder.render_definitions())
+                f.write(_render_definitions(
+                    list(defs.keys())
+                    + [k for k in builder.definitions if k not in defs],
+                    set(defs.keys()),
+                    Context(builder.definitions)))
 
         for filepath in filepaths:
             os.remove(filepath)

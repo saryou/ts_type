@@ -319,11 +319,11 @@ class NodeBuilder:
             if len(literals) > 1:
                 return UnionNode(of=cast(List[TypeNode], literals))
             return literals[0]
-        elif is_dataclass(origin):
-            return self._dataclass_to_node(
-                origin,
-                unknown,
-                typevars=[self.type_to_node(t) for t in args])
+        elif origin:
+            node = self.type_to_node(origin, unknown)
+            if isinstance(node, ReferenceNode):
+                node.typevars = [self.type_to_node(t) for t in args]
+            return node
         elif isinstance(t, str):
             return self.type_to_node(self._resolve_annotation(t), unknown)
         elif isinstance(t, TypeVar):
@@ -350,22 +350,14 @@ class NodeBuilder:
                 return self.define_ref_node(t, lambda: UnionNode(
                     [self._literal_to_node(i) for i in t]))
             elif is_dataclass(t):
-                return self._dataclass_to_node(t, unknown)
+                return self.define_ref_node(
+                    t,
+                    lambda: ObjectNode(
+                        attrs={f.name: self.type_to_node(f.type, unknown)
+                               for f in dc_fields(t)},
+                        omissible=set()))
 
         return self.default(t)
-
-    def _dataclass_to_node(self,
-                           t: Any,
-                           unknown: bool,
-                           typevars: list[TypeNode] = []) -> TypeNode:
-        assert is_dataclass(t)
-        return self.define_ref_node(
-            t,
-            lambda: ObjectNode(
-                attrs={f.name: self.type_to_node(f.type, unknown)
-                       for f in dc_fields(t)},
-                omissible=set()),
-            typevars)
 
     def define_ref_node(self,
                         t: type,

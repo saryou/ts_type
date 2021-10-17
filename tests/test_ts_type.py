@@ -39,6 +39,12 @@ class Tests(TestCase):
         assert isinstance(one, ts.LiteralNode)
         self.assertEqual(one.literal, '1')
 
+        a_or_true_or_one = builder.type_to_node(Literal['a', True, 1])
+        assert isinstance(a_or_true_or_one, ts.UnionNode)
+        self.assertEqual(a_or_true_or_one.of[0].literal, '"a"')
+        self.assertEqual(a_or_true_or_one.of[1].literal, 'true')
+        self.assertEqual(a_or_true_or_one.of[2].literal, '1')
+
     def test_tuple(self):
         builder = ts.NodeBuilder()
 

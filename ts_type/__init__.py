@@ -10,7 +10,7 @@ from dataclasses import fields as dc_fields, is_dataclass
 from importlib import import_module
 from types import GenericAlias
 from typing import Optional, Any, Type, Callable, Union, ForwardRef, TypeVar,\
-    Iterable, overload, Literal, List, Dict, Set, Tuple, Sequence
+    Iterable, overload, Literal, List, Dict, Set, Tuple, Sequence, cast
 
 
 T = TypeVar('T')
@@ -314,8 +314,11 @@ class NodeBuilder:
                 key=key,
                 value=self.type_to_node(args[1], unknown))
         elif origin is Literal:
-            assert len(args) == 1
-            return self._literal_to_node(args[0])
+            assert args
+            literals = [self._literal_to_node(a) for a in args]
+            if len(literals) > 1:
+                return UnionNode(of=cast(List[TypeNode], literals))
+            return literals[0]
         elif is_dataclass(origin):
             return self._dataclass_to_node(
                 origin,
@@ -391,8 +394,7 @@ class NodeBuilder:
     def update_definitions(self, definitions: Dict[str, TypeNode]):
         self._definitions.update(definitions)
 
-    def _literal_to_node(self,
-                         value: Union[int, bool, str, Enum]) -> LiteralNode:
+    def _literal_to_node(self, value: Any) -> LiteralNode:
         literal = value.name if isinstance(value, Enum) else value
         assert isinstance(literal, (int, bool, str))
         return LiteralNode(json.dumps(literal))

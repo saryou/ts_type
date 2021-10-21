@@ -41,8 +41,11 @@ class Tests(TestCase):
 
         a_or_true_or_one = builder.type_to_node(Literal['a', True, 1])
         assert isinstance(a_or_true_or_one, ts.UnionNode)
+        assert isinstance(a_or_true_or_one.of[0], ts.LiteralNode)
         self.assertEqual(a_or_true_or_one.of[0].literal, '"a"')
+        assert isinstance(a_or_true_or_one.of[1], ts.LiteralNode)
         self.assertEqual(a_or_true_or_one.of[1].literal, 'true')
+        assert isinstance(a_or_true_or_one.of[2], ts.LiteralNode)
         self.assertEqual(a_or_true_or_one.of[2].literal, '1')
 
     def test_tuple(self):
@@ -235,6 +238,77 @@ class Tests(TestCase):
         self.assertTrue(any(t == e.attrs['v'] for t in e.attrs['any'].of))
         self.assertTrue(all(any(t == w for t in e.attrs['any'].of)
                             for w in e.attrs['w'].of))
+
+    def test_parametarized_generics(self):
+        builder = ts.NodeBuilder()
+
+        # single parameter
+        a_ref = builder.type_to_node(GenericTest[int])
+        assert isinstance(a_ref, ts.ReferenceNode)
+        self.assertEqual(a_ref.typevars, [ts.NumberNode()])
+
+        a = builder.definitions[a_ref.identifier]
+        assert isinstance(a, ts.ObjectNode)
+        self.assertEqual(len(a.attrs), 1)
+        self.assertEqual(a.attrs['t'], ts.TypeVariableNode(T))
+        self.assertEqual(a.get_generic_params(), [ts.TypeVariableNode(T)])
+
+        # multiple parameters
+        c_ref = builder.type_to_node(GenericC[int, str, bool])
+        assert isinstance(c_ref, ts.ReferenceNode)
+        self.assertEqual(c_ref.typevars, [
+            ts.NumberNode(),
+            ts.StringNode(),
+            ts.BooleanNode(),
+        ])
+
+        c = builder.definitions[c_ref.identifier]
+        assert isinstance(c, ts.ObjectNode)
+        self.assertEqual(len(c.attrs), 5)
+        self.assertEqual(c.attrs['t'], ts.TupleNode([
+            ts.DictNode(ts.StringNode(), ts.TypeVariableNode(U)),
+            ts.TypeVariableNode(V),
+            ts.TypeVariableNode(W),
+        ]))
+        self.assertEqual(c.attrs['u'], ts.TypeVariableNode(U))
+        self.assertEqual(c.attrs['v'], ts.TypeVariableNode(V))
+        self.assertEqual(c.attrs['w'], ts.TypeVariableNode(W))
+        self.assertEqual(c.attrs['any'], ts.UnionNode([
+            ts.TypeVariableNode(U),
+            ts.TypeVariableNode(V),
+            ts.TypeVariableNode(W),
+        ]))
+        self.assertEqual(c.get_generic_params(), [
+            ts.TypeVariableNode(U),
+            ts.TypeVariableNode(V),
+            ts.TypeVariableNode(W),
+        ])
+
+        d_ref = builder.type_to_node(GenericD[List[int]])
+        assert isinstance(d_ref, ts.ReferenceNode)
+        self.assertEqual(d_ref.typevars, [
+            ts.ArrayNode(ts.NumberNode()),
+        ])
+
+        d = builder.definitions[d_ref.identifier]
+        assert isinstance(d, ts.ObjectNode)
+        self.assertEqual(len(d.attrs), 5)
+        self.assertEqual(d.attrs['t'], ts.TupleNode([
+            ts.DictNode(ts.StringNode(), ts.NumberNode()),
+            ts.StringNode(),
+            ts.TypeVariableNode(W),
+        ]))
+        self.assertEqual(d.attrs['u'], ts.NumberNode())
+        self.assertEqual(d.attrs['v'], ts.StringNode())
+        self.assertEqual(d.attrs['w'], ts.TypeVariableNode(W))
+        self.assertEqual(d.attrs['any'], ts.UnionNode([
+            ts.NumberNode(),
+            ts.StringNode(),
+            ts.TypeVariableNode(W),
+        ]))
+        self.assertEqual(d.get_generic_params(), [
+            ts.TypeVariableNode(W),
+        ])
 
 
 @dataclass

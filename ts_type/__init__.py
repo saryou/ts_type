@@ -135,7 +135,13 @@ class ReferenceNode(TypeNode):
     def render(self, context: Context) -> str:
         ref_typevars = context.resolve_ref(self).get_generic_params()
         typevars = [*self.typevars, *ref_typevars[len(self.typevars):]]
-        return self.identifier + _render_typevars(context, typevars)
+        return self.identifier + self.__render_typevars(context, typevars)
+
+    def __render_typevars(self,
+                          context: Context,
+                          typevars: Sequence[TypeNode]) -> str:
+        defs = [n.render(context) for n in typevars]
+        return ''.join(['<', ', '.join(defs), '>']) if typevars else ''
 
     def __eq__(self, other):
         return isinstance(other, ReferenceNode)\
@@ -244,50 +250,41 @@ class UnionNode(TypeNode):
             and self.of == other.of
 
 
-def _render_definitions(ref_names: List[str],
-                        ids_to_export: Set[str],
-                        ctx: Context) -> str:
-    def export(key: str) -> str:
-        return 'export ' if key in ids_to_export else ''
-
-    def render(k: str) -> str:
-        ref = ReferenceNode(k)
-        node = ctx.definitions[k]
-        lhs = f'{export(k)}type {ref.render(ctx)}'
-        rhs = f'{node.render(ctx)};'
-        return f'{lhs} = {rhs}'
-
-    return '\n\n'.join([render(k) for k in ref_names])
-
-
-def _render_typevars(context: Context, typevars: Sequence[TypeNode]) -> str:
-    defs = [n.render(context) for n in typevars]
-    return ''.join(['<', ', '.join(defs), '>'])\
-        if typevars else ''
+class UnknownTypeError(Exception):
+    pass
 
 
 class NodeBuilder:
-    def __init__(self,
-                 default: Optional[Callable[
-                     ['NodeBuilder', Any], TypeNode]] = None) -> None:
+    def __init__(self) -> None:
         self._modules: Dict[str, Any] = {}
         self._definitions: Dict[str, TypeNode] = {}
         self._stack: List[Tuple[str, str, Any]] = []
-        self._default = default
 
     @property
     def definitions(self) -> Dict[str, Any]:
         return self._definitions
 
-    def type_to_node(self, t: Any, allow_unknown: bool = False) -> TypeNode:
-        try:
-            return self._type_to_node(t, allow_unknown)
-        except AssertionError:
-            if allow_unknown:
-                return UnknownNode()
-            raise
+    def update_definitions(self, definitions: Dict[str, TypeNode]):
+        self._definitions.update(definitions)
 
-    def _type_to_node(self, t: Any, unknown: bool) -> TypeNode:
+    def render(self, refs_to_export: Optional[Set[str]] = None) -> str:
+        ctx = Context(self.definitions)
+
+        to_export = refs_to_export or set(self.definitions.keys())
+        ref_names = [k for k in self.definitions if k in to_export]\
+            + [k for k in self.definitions if k not in to_export]
+
+        def render(k: str) -> str:
+            export = 'export ' if k in to_export else ''
+            ref = ReferenceNode(k)
+            node = ctx.definitions[k]
+            lhs = f'{export}type {ref.render(ctx)}'
+            rhs = f'{node.render(ctx)};'
+            return f'{lhs} = {rhs}'
+
+        return '\n\n'.join([render(k) for k in ref_names])
+
+    def type_to_node(self, t: Any, unknown_node: bool = False) -> TypeNode:
         if t in [None, type(None)]:
             return NullNode()
 
@@ -297,22 +294,23 @@ class NodeBuilder:
         if origin is Union:
             assert args
             if len(args) == 1:
-                return self.type_to_node(args[0], unknown)
+                return self.type_to_node(args[0], unknown_node)
             return UnionNode(
-                of=[self.type_to_node(a, unknown) for a in args])
+                of=[self.type_to_node(a, unknown_node) for a in args])
         elif origin is tuple:
             assert args
-            return TupleNode([self.type_to_node(a, unknown) for a in args])
+            return TupleNode(
+                [self.type_to_node(a, unknown_node) for a in args])
         elif origin is list or origin is set:
             assert args
-            return ArrayNode(self.type_to_node(args[0], unknown))
+            return ArrayNode(self.type_to_node(args[0], unknown_node))
         elif origin is dict:
             assert len(args) > 1
-            key = self.type_to_node(args[0], unknown)
+            key = self.type_to_node(args[0], unknown_node)
             assert isinstance(key, DictKeyType)
             return DictNode(
                 key=key,
-                value=self.type_to_node(args[1], unknown))
+                value=self.type_to_node(args[1], unknown_node))
         elif origin is Literal:
             assert args
             literals = [self._literal_to_node(a) for a in args]
@@ -320,21 +318,22 @@ class NodeBuilder:
                 return UnionNode(of=cast(List[TypeNode], literals))
             return literals[0]
         elif origin:
-            node = self.type_to_node(origin, unknown)
+            node = self.type_to_node(origin, unknown_node)
             if isinstance(node, ReferenceNode):
                 node.typevars = [self.type_to_node(t) for t in args]
             return node
         elif isinstance(t, str):
-            return self.type_to_node(self._resolve_annotation(t), unknown)
+            return self.type_to_node(self._resolve_annotation(t), unknown_node)
         elif isinstance(t, TypeVar):
             try:
-                return self.type_to_node(self._resolve_typevar(t), unknown)
+                _t = self._resolve_typevar(t)
             except AssertionError:
                 return TypeVariableNode(typevar=t)
+            return self.type_to_node(_t, unknown_node)
         elif isinstance(t, ForwardRef):
             _globals = self._current_module.__dict__
             evaluated = t._evaluate(_globals, None, set())  # type: ignore
-            return self.type_to_node(evaluated, unknown)
+            return self.type_to_node(evaluated, unknown_node)
         elif isinstance(t, NodeCompatible):
             return t.convert_to_node(self)
         elif isinstance(t, type):
@@ -353,11 +352,18 @@ class NodeBuilder:
                 return self.define_ref_node(
                     t,
                     lambda: ObjectNode(
-                        attrs={f.name: self.type_to_node(f.type, unknown)
+                        attrs={f.name: self.type_to_node(f.type, unknown_node)
                                for f in dc_fields(t)},
                         omissible=set()))
 
-        return self.default(t)
+        return self.handle_unknown_type(t, unknown_node)
+
+    def handle_unknown_type(self,
+                            t: Any,
+                            unknown_node: bool) -> TypeNode:
+        if unknown_node:
+            return UnknownNode()
+        raise UnknownTypeError(f'Type `{t}` is not supported.')
 
     def define_ref_node(self,
                         t: type,
@@ -383,21 +389,10 @@ class NodeBuilder:
 
         return ReferenceNode(_id, ref_typevars)
 
-    def update_definitions(self, definitions: Dict[str, TypeNode]):
-        self._definitions.update(definitions)
-
     def _literal_to_node(self, value: Any) -> LiteralNode:
         literal = value.name if isinstance(value, Enum) else value
         assert isinstance(literal, (int, bool, str))
         return LiteralNode(json.dumps(literal))
-
-    def default(self, t: Any) -> TypeNode:
-        if self._default is not None:
-            ret = self._default(self, t)
-            if isinstance(ret, TypeNode):
-                return ret
-            assert ret is None, 'default must return TypeNode or None'
-        raise AssertionError(f'Type `{t}` is not supported.')
 
     @contextmanager
     def _begin_module_context(self, t: Type):
@@ -409,10 +404,6 @@ class NodeBuilder:
     @property
     def _current_module(self) -> Any:
         return self._modules[self._stack[-1][0]]
-
-    @property
-    def _current(self) -> str:
-        return '.'.join(self._stack[-1][:2])
 
     @property
     def _current_obj(self) -> Any:
@@ -431,6 +422,9 @@ class NodeBuilder:
         for name in names:
             t = getattr(t, name)
         return t
+
+    def __str__(self) -> str:
+        return self.render(None)
 
 
 def resolve_typevar(cls: type, t: TypeVar) -> type:
@@ -530,10 +524,34 @@ class TypeDefinitionGenerator:
 
     def generate(self,
                  output_dir: Union[str, Path],
-                 builder_cls: Type[NodeBuilder] = NodeBuilder):
+                 builder_cls: Type[NodeBuilder] = NodeBuilder,
+                 file_extension: str = 'gen.ts',
+                 delete_conflicting_outputs: bool = True):
         basedir = Path(output_dir)
-        filepaths = {p for p in basedir.glob('**/*.gen.ts')}
-        for _filepath, types in self.types.items():
+        file_extension = file_extension[1:]\
+            if file_extension.startswith('.') else file_extension
+        filepaths = {p for p in basedir.glob(f'**/*.{file_extension}')}\
+            if delete_conflicting_outputs else set()
+
+        output = self.render(builder_cls)
+        for output_filepath in self.types.keys():
+            filepath = basedir / (f'{output_filepath}.{file_extension}')
+            filepaths.discard(filepath)
+
+            _dirname = os.path.dirname(filepath)
+            if not os.path.exists(_dirname):
+                os.makedirs(_dirname)
+
+            with open(filepath, 'w') as f:
+                f.write(output[output_filepath])
+
+        for filepath in filepaths:
+            os.remove(filepath)
+
+    def render(self,
+               builder_cls: Type[NodeBuilder] = NodeBuilder) -> Dict[str, str]:
+        result: Dict[str, str] = dict()
+        for output_filepath, types in self.types.items():
             builder = builder_cls()
             defs: Dict[str, TypeNode] = dict()
 
@@ -543,24 +561,9 @@ class TypeDefinitionGenerator:
                 else:
                     defs[name] = builder.type_to_node(value)
 
-            filepath = basedir / (_filepath + '.gen.ts')
-            filepaths.discard(filepath)
-
-            _dirname = os.path.dirname(filepath)
-            if not os.path.exists(_dirname):
-                os.makedirs(_dirname)
-
             builder.update_definitions(defs)
-
-            with open(filepath, 'w') as f:
-                f.write(_render_definitions(
-                    list(defs.keys())
-                    + [k for k in builder.definitions if k not in defs],
-                    set(defs.keys()),
-                    Context(builder.definitions)))
-
-        for filepath in filepaths:
-            os.remove(filepath)
+            result[output_filepath] = builder.render(set(defs.keys()))
+        return result
 
 
 generator = TypeDefinitionGenerator()

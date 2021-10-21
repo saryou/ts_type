@@ -366,11 +366,17 @@ class NodeBuilder:
         raise UnknownTypeError(f'Type `{t}` is not supported.')
 
     def define_ref_node(self,
-                        t: type,
+                        type_or_id: Union[type, str],
                         define: Callable[[], TypeNode],
+                        generic_params: Optional[List[TypeVar]] = None,
                         ref_typevars: List[TypeNode] = []) -> ReferenceNode:
-        _id = '.'.join([t.__module__, t.__qualname__])
-        _id = re.sub(r'\.', '__', _id)
+        if isinstance(type_or_id, str):
+            t = None
+            _id = type_or_id
+        else:
+            t = type_or_id
+            _id = '.'.join([t.__module__, t.__qualname__])
+            _id = re.sub(r'\.', '__', _id)
 
         defs = self._definitions
         if _id not in defs:
@@ -379,7 +385,10 @@ class NodeBuilder:
             try:
                 with self._begin_module_context(t):
                     type_node = define()
-                    if (params := getattr(t, '__parameters__', None)):
+                    if generic_params is not None:
+                        type_node.add_generic_params(
+                            [TypeVariableNode(p) for p in generic_params])
+                    elif (params := getattr(t, '__parameters__', None)):
                         type_node.add_generic_params(
                             [TypeVariableNode(p) for p in params])
                 defs[_id] = type_node

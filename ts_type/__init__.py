@@ -10,10 +10,12 @@ from dataclasses import fields as dc_fields, is_dataclass
 from importlib import import_module
 from types import GenericAlias
 from typing import Optional, Any, Type, Callable, Union, ForwardRef, TypeVar,\
-    Iterable, overload, Literal, List, Dict, Set, Tuple, Sequence, cast
+    Iterable, overload, Literal, List, Dict, Set, Tuple, Sequence, cast,\
+    Generic
 
 
 T = TypeVar('T')
+BuilderT = TypeVar('BuilderT', bound='NodeBuilder')
 
 
 class Context:
@@ -404,7 +406,11 @@ class NodeBuilder:
         return LiteralNode(json.dumps(literal))
 
     @contextmanager
-    def _begin_module_context(self, t: Type):
+    def _begin_module_context(self, t: Optional[Type]):
+        if t is None:
+            yield
+            return
+
         self._import_module(t.__module__)
         self._stack.append((t.__module__, t.__qualname__, t))
         yield
@@ -491,14 +497,14 @@ def _find_typevar(mro: List[type], t: TypeVar) -> Optional[Tuple[int, int]]:
     return None
 
 
-class NodeCompatibleClass:
+class NodeCompatibleClass(Generic[BuilderT]):
     @classmethod
-    def convert_to_node(cls, builder: NodeBuilder) -> TypeNode:
+    def convert_to_node(cls, builder: BuilderT) -> TypeNode:
         raise NotImplementedError()
 
 
-class NodeCompatible:
-    def convert_to_node(self, builder: NodeBuilder) -> TypeNode:
+class NodeCompatible(Generic[BuilderT]):
+    def convert_to_node(self, builder: BuilderT) -> TypeNode:
         raise NotImplementedError()
 
 

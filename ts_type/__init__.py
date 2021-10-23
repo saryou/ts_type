@@ -12,6 +12,7 @@ from types import GenericAlias
 from typing import Optional, Any, Type, Callable, Union, ForwardRef, TypeVar,\
     overload, Literal, List, Dict, Set, Tuple, cast, Generic
 
+from .exceptions import UnknownTypeError
 from .nodes import ArrayNode, BooleanNode, DictKeyType, DictNode,\
     LiteralNode, NullNode, NumberNode, ObjectNode, ReferenceNode,\
     RenderContext, StringNode, TupleNode, TypeNode, TypeVariableNode,\
@@ -21,10 +22,6 @@ from .nodes import *  # noqa
 
 T = TypeVar('T')
 BuilderT = TypeVar('BuilderT', bound='NodeBuilder')
-
-
-class UnknownTypeError(Exception):
-    pass
 
 
 class NodeBuilder:

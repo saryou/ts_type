@@ -11,6 +11,12 @@ T = TypeVar('T')
 
 
 class TypeDefinitionGenerator:
+    """
+    This class collects python objects which will be converted to
+    typescript's types. And generates .ts files from collected objects
+    into specified directory.
+    """
+
     def __init__(self):
         self.types: Dict[str, Dict[str, Any]] = defaultdict(dict)
 

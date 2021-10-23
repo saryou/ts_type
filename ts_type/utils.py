@@ -3,6 +3,12 @@ from typing import Optional, Any, TypeVar, List, Tuple
 
 
 def resolve_typevar(cls: type, t: TypeVar) -> type:
+    """resolve typevar to actual type or raise AssertionError
+
+    It visits given type's mro and look into their __parameters__ to
+    resolve actual type. I think this approach depends on internal
+    implementations so it is fairly experimental.
+    """
     return _resolve_typevar(cls, t, 0)
 
 

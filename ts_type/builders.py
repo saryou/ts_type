@@ -21,6 +21,8 @@ BuilderT = TypeVar('BuilderT', bound='NodeBuilder')
 
 
 class NodeBuilder:
+    """NodeBuilder converts python objects to typescript's types."""
+
     def __init__(self) -> None:
         self._modules: Dict[str, Any] = {}
         self._definitions: Dict[str, TypeNode] = {}

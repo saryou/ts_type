@@ -1,4 +1,4 @@
-It generates typescript's type definitions from python's typing
+It generates typescript's type definitions from python's objects.
 
 
 1. add type to generator

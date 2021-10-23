@@ -18,7 +18,7 @@ T = TypeVar('T')
 BuilderT = TypeVar('BuilderT', bound='NodeBuilder')
 
 
-class Context:
+class RenderContext:
     def __init__(self,
                  definitions: Dict[str, 'TypeNode'],
                  indent_level: int = 0,
@@ -27,13 +27,13 @@ class Context:
         self.indent_level = indent_level
         self.indent_unit = indent_unit
 
-    def clone(self, **override) -> 'Context':
+    def clone(self, **override) -> 'RenderContext':
         kwargs: Dict[str, Any] = dict(
             definitions=self.definitions,
             indent_level=self.indent_level,
             indent_unit=self.indent_unit)
         kwargs.update(override)
-        return Context(**kwargs)
+        return RenderContext(**kwargs)
 
     @property
     def indent(self) -> str:
@@ -53,12 +53,12 @@ class TypeNode:
         self.__params__ = self.get_generic_params()
         self.__params__.extend(variables)
 
-    def render(self, context: Context) -> str:
+    def render(self, context: RenderContext) -> str:
         raise NotImplementedError()
 
 
 class DictKeyType(TypeNode):
-    def render_dict_key(self, context: Context) -> str:
+    def render_dict_key(self, context: RenderContext) -> str:
         raise NotImplementedError()
 
 
@@ -68,38 +68,38 @@ class BuiltinTypeNode(TypeNode):
 
 
 class StringNode(BuiltinTypeNode, DictKeyType):
-    def render(self, context: Context) -> str:
+    def render(self, context: RenderContext) -> str:
         return 'string'
 
-    def render_dict_key(self, context: Context) -> str:
+    def render_dict_key(self, context: RenderContext) -> str:
         return '[key: string]'
 
 
 class NumberNode(BuiltinTypeNode, DictKeyType):
-    def render(self, context: Context) -> str:
+    def render(self, context: RenderContext) -> str:
         return 'number'
 
-    def render_dict_key(self, context: Context) -> str:
+    def render_dict_key(self, context: RenderContext) -> str:
         return '[key: number]'
 
 
 class BooleanNode(BuiltinTypeNode):
-    def render(self, context: Context) -> str:
+    def render(self, context: RenderContext) -> str:
         return 'boolean'
 
 
 class NullNode(BuiltinTypeNode):
-    def render(self, context: Context) -> str:
+    def render(self, context: RenderContext) -> str:
         return 'null'
 
 
 class UndefinedNode(BuiltinTypeNode):
-    def render(self, context: Context) -> str:
+    def render(self, context: RenderContext) -> str:
         return 'undefined'
 
 
 class UnknownNode(BuiltinTypeNode):
-    def render(self, context: Context) -> str:
+    def render(self, context: RenderContext) -> str:
         return 'unknown'
 
 
@@ -107,7 +107,7 @@ class LiteralNode(BuiltinTypeNode):
     def __init__(self, literal: str):
         self.literal = literal
 
-    def render(self, context: Context) -> str:
+    def render(self, context: RenderContext) -> str:
         return self.literal
 
     def __eq__(self, other):
@@ -119,7 +119,7 @@ class TypeVariableNode(BuiltinTypeNode):
     def __init__(self, typevar: TypeVar):
         self.typevar = typevar
 
-    def render(self, context: Context) -> str:
+    def render(self, context: RenderContext) -> str:
         return self.typevar.__name__
 
     def __eq__(self, other):
@@ -134,13 +134,13 @@ class ReferenceNode(TypeNode):
         self.identifier = identifier
         self.typevars = typevars
 
-    def render(self, context: Context) -> str:
+    def render(self, context: RenderContext) -> str:
         ref_typevars = context.resolve_ref(self).get_generic_params()
         typevars = [*self.typevars, *ref_typevars[len(self.typevars):]]
         return self.identifier + self.__render_typevars(context, typevars)
 
     def __render_typevars(self,
-                          context: Context,
+                          context: RenderContext,
                           typevars: Sequence[TypeNode]) -> str:
         defs = [n.render(context) for n in typevars]
         return ''.join(['<', ', '.join(defs), '>']) if typevars else ''
@@ -158,7 +158,7 @@ class ObjectNode(TypeNode):
         self.attrs = attrs
         self.omissible = omissible
 
-    def render(self, context: Context) -> str:
+    def render(self, context: RenderContext) -> str:
         c = context.clone(indent_level=context.indent_level + 1)
         return '\n'.join([
             '{',
@@ -180,7 +180,7 @@ class TupleNode(TypeNode):
     def __init__(self, of: List[TypeNode]):
         self.of = of
 
-    def render(self, context: Context):
+    def render(self, context: RenderContext):
         return '[' + ', '.join([
             node.render(context) for node in self.of
         ]) + ']'
@@ -194,7 +194,7 @@ class ArrayNode(TypeNode):
     def __init__(self, of: TypeNode):
         self.of = of
 
-    def render(self, context: Context):
+    def render(self, context: RenderContext):
         return self.of.render(context) + '[]'
 
     def __eq__(self, other):
@@ -209,7 +209,7 @@ class DictNode(TypeNode):
         self.key = key
         self.value = value
 
-    def render(self, context: Context):
+    def render(self, context: RenderContext):
         return ''.join([
             '{',
             self.key.render_dict_key(context),
@@ -242,7 +242,7 @@ class UnionNode(TypeNode):
                 ret.append(node)
         return ret
 
-    def render(self, context: Context):
+    def render(self, context: RenderContext):
         return '(' + ' | '.join([
             node.render(context) for node in self.of
         ]) + ')'
@@ -270,7 +270,7 @@ class NodeBuilder:
         self._definitions.update(definitions)
 
     def render(self, refs_to_export: Optional[Set[str]] = None) -> str:
-        ctx = Context(self.definitions)
+        ctx = RenderContext(self.definitions)
 
         to_export = refs_to_export or set(self.definitions.keys())
         ref_names = [k for k in self.definitions if k in to_export]\

@@ -1,4 +1,4 @@
-from typing import Any, TypeVar, Iterable, List, Dict, Set, Sequence
+from typing import Any, TypeVar, Iterable, List, Dict, Set, Sequence, Optional
 
 
 class RenderContext:
@@ -137,9 +137,9 @@ class ReferenceNode(TypeNode):
 class ObjectNode(TypeNode):
     def __init__(self,
                  attrs: Dict[str, TypeNode],
-                 omissible: Set[str]):
+                 omissible: Optional[Set[str]] = None):
         self.attrs = attrs
-        self.omissible = omissible
+        self.omissible = omissible or set()
 
     def render(self, context: RenderContext) -> str:
         c = context.clone(indent_level=context.indent_level + 1)

@@ -235,6 +235,34 @@ class UnionNode(TypeNode):
             and self.of == other.of
 
 
+class Intersection(TypeNode):
+    def __init__(self, of: List[TypeNode]):
+        self.of = self._unique(self._flatten(of))
+
+    def _flatten(self, of: List[TypeNode]) -> Iterable[TypeNode]:
+        for node in of:
+            if isinstance(node, Intersection):
+                yield from self._flatten(node.of)
+            else:
+                yield node
+
+    def _unique(self, of: Iterable[TypeNode]) -> List[TypeNode]:
+        ret: List[TypeNode] = []
+        for node in of:
+            if all(n != node for n in ret):
+                ret.append(node)
+        return ret
+
+    def render(self, context: RenderContext):
+        return '(' + ' & '.join([
+            node.render(context) for node in self.of
+        ]) + ')'
+
+    def __eq__(self, other):
+        return isinstance(other, Intersection)\
+            and self.of == other.of
+
+
 class CustomNode(TypeNode):
     def __init__(self, name: str, parameters: List[TypeNode]):
         self.name = name
@@ -314,6 +342,7 @@ __all__ = [
     'TypeVariableNode',
     'UndefinedNode',
     'UnionNode',
+    'Intersection',
     'UnknownNode',
     'CustomNode',
     'Partial',

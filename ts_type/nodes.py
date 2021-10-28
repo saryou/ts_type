@@ -263,6 +263,18 @@ class Intersection(TypeNode):
             and self.of == other.of
 
 
+class Keyof(TypeNode):
+    def __init__(self, of: TypeNode):
+        self.of = of
+
+    def render(self, context: RenderContext):
+        return f'(keyof {self.of.render(context)})'
+
+    def __eq__(self, other):
+        return isinstance(other, TupleNode)\
+            and self.of == other.of
+
+
 class CustomNode(TypeNode):
     def __init__(self, name: str, parameters: List[TypeNode]):
         self.name = name
@@ -343,6 +355,7 @@ __all__ = [
     'UndefinedNode',
     'UnionNode',
     'Intersection',
+    'Keyof',
     'UnknownNode',
     'CustomNode',
     'Partial',

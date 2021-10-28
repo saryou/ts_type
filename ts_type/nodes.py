@@ -235,6 +235,67 @@ class UnionNode(TypeNode):
             and self.of == other.of
 
 
+class CustomNode(TypeNode):
+    def __init__(self, name: str, parameters: List[TypeNode]):
+        self.name = name
+        self.parameters = parameters
+
+    def render(self, context: RenderContext):
+        return f'{self.name}<' + ', '.join([
+            node.render(context) for node in self.parameters
+        ]) + '>'
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__)\
+            and self.name == other.name\
+            and self.parameters == other.parameters
+
+
+class Partial(CustomNode):
+    def __init__(self, type: TypeNode):
+        super().__init__('Partial', [type])
+
+
+class Required(CustomNode):
+    def __init__(self, type: TypeNode):
+        super().__init__('Required', [type])
+
+
+class Readonly(CustomNode):
+    def __init__(self, type: TypeNode):
+        super().__init__('Readonly', [type])
+
+
+class Record(CustomNode):
+    def __init__(self, keys: TypeNode, type: TypeNode):
+        super().__init__('Record', [keys, type])
+
+
+class Pick(CustomNode):
+    def __init__(self, type: TypeNode, keys: TypeNode):
+        super().__init__('Pick', [type, keys])
+
+
+class Omit(CustomNode):
+    def __init__(self, type: TypeNode, keys: TypeNode):
+        super().__init__('Omit', [type, keys])
+
+
+class Exclude(CustomNode):
+    def __init__(self, type: TypeNode, excluded_union: TypeNode):
+        super().__init__('Exclude', [type, excluded_union])
+
+
+class Extract(CustomNode):
+    def __init__(self, type: TypeNode, union: TypeNode):
+        super().__init__('Extract', [type, union])
+
+
+class NonNullable(CustomNode):
+    def __init__(self, type: TypeNode):
+        super().__init__('NonNullable', [type])
+
+
 __all__ = [
     'ArrayNode',
     'BooleanNode',
@@ -254,4 +315,14 @@ __all__ = [
     'UndefinedNode',
     'UnionNode',
     'UnknownNode',
+    'CustomNode',
+    'Partial',
+    'Required',
+    'Readonly',
+    'Record',
+    'Pick',
+    'Omit',
+    'Exclude',
+    'Extract',
+    'NonNullable',
 ]

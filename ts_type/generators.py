@@ -89,6 +89,15 @@ class TypeDefinitionGenerator:
         return result
 
 
+generator = TypeDefinitionGenerator()
+
+
+def gen_type(t: Type[T]) -> Type[T]:
+    return generator.add(t)
+
+
 __all__ = [
     'TypeDefinitionGenerator',
+    'generator',
+    'gen_type',
 ]

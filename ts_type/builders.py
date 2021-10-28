@@ -49,7 +49,8 @@ class NodeBuilder:
 
         return '\n\n'.join([render(k) for k in ref_names])
 
-    def type_to_node(self, t: Any, unknown_node: bool = False) -> nodes.TypeNode:
+    def type_to_node(self, t: Any, unknown_node: bool = False)\
+            -> nodes.TypeNode:
         if t in [None, type(None)]:
             return nodes.Null()
 
@@ -130,11 +131,12 @@ class NodeBuilder:
             return nodes.Unknown()
         raise UnknownTypeError(f'Type `{t}` is not supported.')
 
-    def define_ref_node(self,
-                        type_or_id: Union[type, str],
-                        define: Callable[[], nodes.TypeNode],
-                        generic_params: Optional[List[TypeVar]] = None,
-                        ref_typevars: List[nodes.TypeNode] = []) -> nodes.Reference:
+    def define_ref_node(
+            self,
+            type_or_id: Union[type, str],
+            define: Callable[[], nodes.TypeNode],
+            generic_params: Optional[List[TypeVar]] = None,
+            ref_typevars: List[nodes.TypeNode] = []) -> nodes.Reference:
         if isinstance(type_or_id, str):
             t = None
             _id = type_or_id

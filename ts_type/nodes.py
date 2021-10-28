@@ -235,6 +235,107 @@ class UnionNode(TypeNode):
             and self.of == other.of
 
 
+class Intersection(TypeNode):
+    def __init__(self, of: List[TypeNode]):
+        self.of = self._unique(self._flatten(of))
+
+    def _flatten(self, of: List[TypeNode]) -> Iterable[TypeNode]:
+        for node in of:
+            if isinstance(node, Intersection):
+                yield from self._flatten(node.of)
+            else:
+                yield node
+
+    def _unique(self, of: Iterable[TypeNode]) -> List[TypeNode]:
+        ret: List[TypeNode] = []
+        for node in of:
+            if all(n != node for n in ret):
+                ret.append(node)
+        return ret
+
+    def render(self, context: RenderContext):
+        return '(' + ' & '.join([
+            node.render(context) for node in self.of
+        ]) + ')'
+
+    def __eq__(self, other):
+        return isinstance(other, Intersection)\
+            and self.of == other.of
+
+
+class Keyof(TypeNode):
+    def __init__(self, of: TypeNode):
+        self.of = of
+
+    def render(self, context: RenderContext):
+        return f'(keyof {self.of.render(context)})'
+
+    def __eq__(self, other):
+        return isinstance(other, TupleNode)\
+            and self.of == other.of
+
+
+class CustomNode(TypeNode):
+    def __init__(self, name: str, parameters: List[TypeNode]):
+        self.name = name
+        self.parameters = parameters
+
+    def render(self, context: RenderContext):
+        return f'{self.name}<' + ', '.join([
+            node.render(context) for node in self.parameters
+        ]) + '>'
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__)\
+            and self.name == other.name\
+            and self.parameters == other.parameters
+
+
+class Partial(CustomNode):
+    def __init__(self, type: TypeNode):
+        super().__init__('Partial', [type])
+
+
+class Required(CustomNode):
+    def __init__(self, type: TypeNode):
+        super().__init__('Required', [type])
+
+
+class Readonly(CustomNode):
+    def __init__(self, type: TypeNode):
+        super().__init__('Readonly', [type])
+
+
+class Record(CustomNode):
+    def __init__(self, keys: TypeNode, type: TypeNode):
+        super().__init__('Record', [keys, type])
+
+
+class Pick(CustomNode):
+    def __init__(self, type: TypeNode, keys: TypeNode):
+        super().__init__('Pick', [type, keys])
+
+
+class Omit(CustomNode):
+    def __init__(self, type: TypeNode, keys: TypeNode):
+        super().__init__('Omit', [type, keys])
+
+
+class Exclude(CustomNode):
+    def __init__(self, type: TypeNode, excluded_union: TypeNode):
+        super().__init__('Exclude', [type, excluded_union])
+
+
+class Extract(CustomNode):
+    def __init__(self, type: TypeNode, union: TypeNode):
+        super().__init__('Extract', [type, union])
+
+
+class NonNullable(CustomNode):
+    def __init__(self, type: TypeNode):
+        super().__init__('NonNullable', [type])
+
+
 __all__ = [
     'ArrayNode',
     'BooleanNode',
@@ -253,5 +354,17 @@ __all__ = [
     'TypeVariableNode',
     'UndefinedNode',
     'UnionNode',
+    'Intersection',
+    'Keyof',
     'UnknownNode',
+    'CustomNode',
+    'Partial',
+    'Required',
+    'Readonly',
+    'Record',
+    'Pick',
+    'Omit',
+    'Exclude',
+    'Extract',
+    'NonNullable',
 ]

@@ -81,7 +81,7 @@ class NodeBuilder:
                 value=self.type_to_node(args[1], unknown_node))
         elif origin is Literal:
             assert args
-            literals = [self._literal_to_node(a) for a in args]
+            literals = [self.literal_to_node(a) for a in args]
             if len(literals) > 1:
                 return UnionNode(of=cast(List[TypeNode], literals))
             return literals[0]
@@ -115,7 +115,7 @@ class NodeBuilder:
                 return NumberNode()
             elif issubclass(t, Enum):
                 return self.define_ref_node(t, lambda: UnionNode(
-                    [self._literal_to_node(i) for i in t]))
+                    [self.literal_to_node(i) for i in t]))
             elif is_dataclass(t):
                 return self.define_ref_node(
                     t,
@@ -166,7 +166,7 @@ class NodeBuilder:
 
         return ReferenceNode(_id, ref_typevars)
 
-    def _literal_to_node(self, value: Any) -> LiteralNode:
+    def literal_to_node(self, value: Any) -> LiteralNode:
         literal = value.name if isinstance(value, Enum) else value
         assert isinstance(literal, (int, bool, str))
         return LiteralNode(json.dumps(literal))

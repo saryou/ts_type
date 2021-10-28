@@ -9,11 +9,8 @@ from typing import Optional, Any, Type, Callable, Union, ForwardRef, TypeVar,\
     Literal, List, Dict, Set, Tuple, cast, Generic
 
 from .exceptions import UnknownTypeError
-from .nodes import ArrayNode, BooleanNode, DictKeyType, DictNode,\
-    LiteralNode, NullNode, NumberNode, ObjectNode, ReferenceNode,\
-    RenderContext, StringNode, TupleNode, TypeNode, TypeVariableNode,\
-    UnionNode, UnknownNode
 from .utils import resolve_typevar
+from . import nodes
 
 
 T = TypeVar('T')
@@ -25,18 +22,18 @@ class NodeBuilder:
 
     def __init__(self) -> None:
         self._modules: Dict[str, Any] = {}
-        self._definitions: Dict[str, TypeNode] = {}
+        self._definitions: Dict[str, nodes.TypeNode] = {}
         self._stack: List[Tuple[str, str, Any]] = []
 
     @property
     def definitions(self) -> Dict[str, Any]:
         return self._definitions
 
-    def update_definitions(self, definitions: Dict[str, TypeNode]):
+    def update_definitions(self, definitions: Dict[str, nodes.TypeNode]):
         self._definitions.update(definitions)
 
     def render(self, refs_to_export: Optional[Set[str]] = None) -> str:
-        ctx = RenderContext(self.definitions)
+        ctx = nodes.RenderContext(self.definitions)
 
         to_export = refs_to_export or set(self.definitions.keys())
         ref_names = [k for k in self.definitions if k in to_export]\
@@ -44,7 +41,7 @@ class NodeBuilder:
 
         def render(k: str) -> str:
             export = 'export ' if k in to_export else ''
-            ref = ReferenceNode(k)
+            ref = nodes.Reference(k)
             node = ctx.definitions[k]
             lhs = f'{export}type {ref.render(ctx)}'
             rhs = f'{node.render(ctx)};'
@@ -52,9 +49,9 @@ class NodeBuilder:
 
         return '\n\n'.join([render(k) for k in ref_names])
 
-    def type_to_node(self, t: Any, unknown_node: bool = False) -> TypeNode:
+    def type_to_node(self, t: Any, unknown_node: bool = False) -> nodes.TypeNode:
         if t in [None, type(None)]:
-            return NullNode()
+            return nodes.Null()
 
         origin = getattr(t, '__origin__', None)
         args = getattr(t, '__args__', tuple())
@@ -63,31 +60,31 @@ class NodeBuilder:
             assert args
             if len(args) == 1:
                 return self.type_to_node(args[0], unknown_node)
-            return UnionNode(
+            return nodes.Union(
                 of=[self.type_to_node(a, unknown_node) for a in args])
         elif origin is tuple:
             assert args
-            return TupleNode(
+            return nodes.Tuple(
                 [self.type_to_node(a, unknown_node) for a in args])
         elif origin is list or origin is set:
             assert args
-            return ArrayNode(self.type_to_node(args[0], unknown_node))
+            return nodes.Array(self.type_to_node(args[0], unknown_node))
         elif origin is dict:
             assert len(args) > 1
             key = self.type_to_node(args[0], unknown_node)
-            assert isinstance(key, DictKeyType)
-            return DictNode(
+            assert isinstance(key, nodes.DictKeyType)
+            return nodes.Dict(
                 key=key,
                 value=self.type_to_node(args[1], unknown_node))
         elif origin is Literal:
             assert args
             literals = [self.literal_to_node(a) for a in args]
             if len(literals) > 1:
-                return UnionNode(of=cast(List[TypeNode], literals))
+                return nodes.Union(of=cast(List[nodes.TypeNode], literals))
             return literals[0]
         elif origin:
             node = self.type_to_node(origin, unknown_node)
-            if isinstance(node, ReferenceNode):
+            if isinstance(node, nodes.Reference):
                 node.typevars = [self.type_to_node(t) for t in args]
             return node
         elif isinstance(t, str):
@@ -96,7 +93,7 @@ class NodeBuilder:
             try:
                 _t = self._resolve_typevar(t)
             except AssertionError:
-                return TypeVariableNode(typevar=t)
+                return nodes.TypeVariable(typevar=t)
             return self.type_to_node(_t, unknown_node)
         elif isinstance(t, ForwardRef):
             _globals = self._current_module.__dict__
@@ -108,18 +105,18 @@ class NodeBuilder:
             if issubclass(t, NodeCompatibleClass):
                 return t.convert_to_node(self)
             elif issubclass(t, (str, datetime, date, time)):
-                return StringNode()
+                return nodes.String()
             elif issubclass(t, bool):
-                return BooleanNode()
+                return nodes.Boolean()
             elif issubclass(t, (int, float)):
-                return NumberNode()
+                return nodes.Number()
             elif issubclass(t, Enum):
-                return self.define_ref_node(t, lambda: UnionNode(
+                return self.define_ref_node(t, lambda: nodes.Union(
                     [self.literal_to_node(i) for i in t]))
             elif is_dataclass(t):
                 return self.define_ref_node(
                     t,
-                    lambda: ObjectNode(
+                    lambda: nodes.Object(
                         attrs={f.name: self.type_to_node(f.type, unknown_node)
                                for f in dc_fields(t)},
                         omissible=set()))
@@ -128,16 +125,16 @@ class NodeBuilder:
 
     def handle_unknown_type(self,
                             t: Any,
-                            unknown_node: bool) -> TypeNode:
+                            unknown_node: bool) -> nodes.TypeNode:
         if unknown_node:
-            return UnknownNode()
+            return nodes.Unknown()
         raise UnknownTypeError(f'Type `{t}` is not supported.')
 
     def define_ref_node(self,
                         type_or_id: Union[type, str],
-                        define: Callable[[], TypeNode],
+                        define: Callable[[], nodes.TypeNode],
                         generic_params: Optional[List[TypeVar]] = None,
-                        ref_typevars: List[TypeNode] = []) -> ReferenceNode:
+                        ref_typevars: List[nodes.TypeNode] = []) -> nodes.Reference:
         if isinstance(type_or_id, str):
             t = None
             _id = type_or_id
@@ -148,28 +145,28 @@ class NodeBuilder:
 
         defs = self._definitions
         if _id not in defs:
-            defs[_id] = TypeNode()
+            defs[_id] = nodes.TypeNode()
 
             try:
                 with self._begin_module_context(t):
                     type_node = define()
                     if generic_params is not None:
                         type_node.add_generic_params(
-                            [TypeVariableNode(p) for p in generic_params])
+                            [nodes.TypeVariable(p) for p in generic_params])
                     elif (params := getattr(t, '__parameters__', None)):
                         type_node.add_generic_params(
-                            [TypeVariableNode(p) for p in params])
+                            [nodes.TypeVariable(p) for p in params])
                 defs[_id] = type_node
             except Exception:
                 del defs[_id]
                 raise
 
-        return ReferenceNode(_id, ref_typevars)
+        return nodes.Reference(_id, ref_typevars)
 
-    def literal_to_node(self, value: Any) -> LiteralNode:
+    def literal_to_node(self, value: Any) -> nodes.Literal:
         literal = value.name if isinstance(value, Enum) else value
         assert isinstance(literal, (int, bool, str))
-        return LiteralNode(json.dumps(literal))
+        return nodes.Literal(json.dumps(literal))
 
     @contextmanager
     def _begin_module_context(self, t: Optional[Type]):
@@ -210,12 +207,12 @@ class NodeBuilder:
 
 class NodeCompatibleClass(Generic[BuilderT]):
     @classmethod
-    def convert_to_node(cls, builder: BuilderT) -> TypeNode:
+    def convert_to_node(cls, builder: BuilderT) -> nodes.TypeNode:
         raise NotImplementedError()
 
 
 class NodeCompatible(Generic[BuilderT]):
-    def convert_to_node(self, builder: BuilderT) -> TypeNode:
+    def convert_to_node(self, builder: BuilderT) -> nodes.TypeNode:
         raise NotImplementedError()
 
 

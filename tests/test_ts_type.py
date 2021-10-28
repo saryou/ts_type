@@ -17,84 +17,84 @@ class Tests(TestCase):
     def test_primitives(self):
         builder = ts.NodeBuilder()
 
-        self.assertIsInstance(builder.type_to_node(str), ts.StringNode)
-        self.assertIsInstance(builder.type_to_node(datetime), ts.StringNode)
-        self.assertIsInstance(builder.type_to_node(date), ts.StringNode)
-        self.assertIsInstance(builder.type_to_node(time), ts.StringNode)
-        self.assertIsInstance(builder.type_to_node(int), ts.NumberNode)
-        self.assertIsInstance(builder.type_to_node(float), ts.NumberNode)
+        self.assertIsInstance(builder.type_to_node(str), ts.String)
+        self.assertIsInstance(builder.type_to_node(datetime), ts.String)
+        self.assertIsInstance(builder.type_to_node(date), ts.String)
+        self.assertIsInstance(builder.type_to_node(time), ts.String)
+        self.assertIsInstance(builder.type_to_node(int), ts.Number)
+        self.assertIsInstance(builder.type_to_node(float), ts.Number)
 
     def test_literals(self):
         builder = ts.NodeBuilder()
 
         a = builder.type_to_node(Literal['a'])
-        assert isinstance(a, ts.LiteralNode)
+        assert isinstance(a, ts.Literal)
         self.assertEqual(a.literal, '"a"')
 
         true = builder.type_to_node(Literal[True])
-        assert isinstance(true, ts.LiteralNode)
+        assert isinstance(true, ts.Literal)
         self.assertEqual(true.literal, 'true')
 
         one = builder.type_to_node(Literal[1])
-        assert isinstance(one, ts.LiteralNode)
+        assert isinstance(one, ts.Literal)
         self.assertEqual(one.literal, '1')
 
         a_or_true_or_one = builder.type_to_node(Literal['a', True, 1])
-        assert isinstance(a_or_true_or_one, ts.UnionNode)
-        assert isinstance(a_or_true_or_one.of[0], ts.LiteralNode)
+        assert isinstance(a_or_true_or_one, ts.Union)
+        assert isinstance(a_or_true_or_one.of[0], ts.Literal)
         self.assertEqual(a_or_true_or_one.of[0].literal, '"a"')
-        assert isinstance(a_or_true_or_one.of[1], ts.LiteralNode)
+        assert isinstance(a_or_true_or_one.of[1], ts.Literal)
         self.assertEqual(a_or_true_or_one.of[1].literal, 'true')
-        assert isinstance(a_or_true_or_one.of[2], ts.LiteralNode)
+        assert isinstance(a_or_true_or_one.of[2], ts.Literal)
         self.assertEqual(a_or_true_or_one.of[2].literal, '1')
 
     def test_tuple(self):
         builder = ts.NodeBuilder()
 
         tup = builder.type_to_node(Tuple[str, int])
-        assert isinstance(tup, ts.TupleNode)
-        assert isinstance(tup.of[0], ts.StringNode)
-        assert isinstance(tup.of[1], ts.NumberNode)
+        assert isinstance(tup, ts.Tuple)
+        assert isinstance(tup.of[0], ts.String)
+        assert isinstance(tup.of[1], ts.Number)
 
     def test_union(self):
         builder = ts.NodeBuilder()
 
         union = builder.type_to_node(Union[str, Literal[1]])
-        assert isinstance(union, ts.UnionNode)
-        assert isinstance(union.of[0], ts.StringNode)
-        assert isinstance(union.of[1], ts.LiteralNode)
+        assert isinstance(union, ts.Union)
+        assert isinstance(union.of[0], ts.String)
+        assert isinstance(union.of[1], ts.Literal)
         self.assertEqual(union.of[1].literal, '1')
 
     def test_array(self):
         builder = ts.NodeBuilder()
 
         _list = builder.type_to_node(List[str])
-        assert isinstance(_list, ts.ArrayNode)
-        assert isinstance(_list.of, ts.StringNode)
+        assert isinstance(_list, ts.Array)
+        assert isinstance(_list.of, ts.String)
 
         _set = builder.type_to_node(Set[float])
-        assert isinstance(_set, ts.ArrayNode)
-        assert isinstance(_set.of, ts.NumberNode)
+        assert isinstance(_set, ts.Array)
+        assert isinstance(_set.of, ts.Number)
 
     def test_dict(self):
         builder = ts.NodeBuilder()
 
         # keys
         str_key = builder.type_to_node(Dict[str, bool])
-        assert isinstance(str_key, ts.DictNode)
-        assert isinstance(str_key.key, ts.StringNode)
-        assert isinstance(str_key.value, ts.BooleanNode)
+        assert isinstance(str_key, ts.Dict)
+        assert isinstance(str_key.key, ts.String)
+        assert isinstance(str_key.value, ts.Boolean)
 
         int_key = builder.type_to_node(Dict[int, int])
-        assert isinstance(int_key, ts.DictNode)
-        assert isinstance(int_key.key, ts.NumberNode)
-        assert isinstance(int_key.value, ts.NumberNode)
+        assert isinstance(int_key, ts.Dict)
+        assert isinstance(int_key.key, ts.Number)
+        assert isinstance(int_key.value, ts.Number)
 
         float_key = builder.type_to_node(Dict[float, List[int]])
-        assert isinstance(float_key, ts.DictNode)
-        assert isinstance(float_key.key, ts.NumberNode)
-        assert isinstance(float_key.value, ts.ArrayNode)
-        assert isinstance(float_key.value.of, ts.NumberNode)
+        assert isinstance(float_key, ts.Dict)
+        assert isinstance(float_key.key, ts.Number)
+        assert isinstance(float_key.value, ts.Array)
+        assert isinstance(float_key.value.of, ts.Number)
 
         # key type must be string or number
         with self.assertRaises(AssertionError):
@@ -108,12 +108,12 @@ class Tests(TestCase):
             b = '2'
 
         a_ref = builder.type_to_node(EnumA)
-        assert isinstance(a_ref, ts.ReferenceNode)
+        assert isinstance(a_ref, ts.Reference)
         a = builder.definitions[a_ref.identifier]
-        assert isinstance(a, ts.UnionNode)
-        assert isinstance(a.of[0], ts.LiteralNode)
+        assert isinstance(a, ts.Union)
+        assert isinstance(a.of[0], ts.Literal)
         self.assertEqual(a.of[0].literal, '"a"')
-        assert isinstance(a.of[1], ts.LiteralNode)
+        assert isinstance(a.of[1], ts.Literal)
         self.assertEqual(a.of[1].literal, '"b"')
 
     def test_dataclass(self):
@@ -126,114 +126,114 @@ class Tests(TestCase):
             c: List[Set[int]]
 
         a_ref = builder.type_to_node(A)
-        assert isinstance(a_ref, ts.ReferenceNode)
+        assert isinstance(a_ref, ts.Reference)
         a = builder.definitions[a_ref.identifier]
-        assert isinstance(a, ts.ObjectNode)
-        assert isinstance(a.attrs['a'], ts.NumberNode)
-        assert isinstance(a.attrs['b'], ts.StringNode)
-        assert isinstance(a.attrs['c'], ts.ArrayNode)
-        assert isinstance(a.attrs['c'].of, ts.ArrayNode)
-        assert isinstance(a.attrs['c'].of.of, ts.NumberNode)
+        assert isinstance(a, ts.Object)
+        assert isinstance(a.attrs['a'], ts.Number)
+        assert isinstance(a.attrs['b'], ts.String)
+        assert isinstance(a.attrs['c'], ts.Array)
+        assert isinstance(a.attrs['c'].of, ts.Array)
+        assert isinstance(a.attrs['c'].of.of, ts.Number)
 
     def test_complicated(self):
         builder = ts.NodeBuilder()
 
         rec_a_ref = builder.type_to_node(RecursiveA)
-        assert isinstance(rec_a_ref, ts.ReferenceNode)
+        assert isinstance(rec_a_ref, ts.Reference)
 
         rec_b_ref = builder.type_to_node(RecursiveB)
-        assert isinstance(rec_b_ref, ts.ReferenceNode)
+        assert isinstance(rec_b_ref, ts.Reference)
 
         # RecursiveA
         rec_a = builder.definitions[rec_a_ref.identifier]
-        assert isinstance(rec_a, ts.ObjectNode)
+        assert isinstance(rec_a, ts.Object)
 
-        assert isinstance(rec_a.attrs['children1'], ts.ArrayNode)
-        assert isinstance(rec_a.attrs['children1'].of, ts.ReferenceNode)
+        assert isinstance(rec_a.attrs['children1'], ts.Array)
+        assert isinstance(rec_a.attrs['children1'].of, ts.Reference)
         self.assertEqual(rec_a.attrs['children1'].of.identifier, rec_a_ref.identifier)
 
-        assert isinstance(rec_a.attrs['children2'], ts.DictNode)
-        assert isinstance(rec_a.attrs['children2'].key, ts.StringNode)
-        assert isinstance(rec_a.attrs['children2'].value, ts.ReferenceNode)
+        assert isinstance(rec_a.attrs['children2'], ts.Dict)
+        assert isinstance(rec_a.attrs['children2'].key, ts.String)
+        assert isinstance(rec_a.attrs['children2'].value, ts.Reference)
         self.assertEqual(rec_a.attrs['children2'].value.identifier, rec_a_ref.identifier)
 
-        assert isinstance(rec_a.attrs['children3'], ts.UnionNode)
-        assert isinstance(rec_a.attrs['children3'].of[0], ts.ArrayNode)
-        assert isinstance(rec_a.attrs['children3'].of[0].of, ts.ReferenceNode)
+        assert isinstance(rec_a.attrs['children3'], ts.Union)
+        assert isinstance(rec_a.attrs['children3'].of[0], ts.Array)
+        assert isinstance(rec_a.attrs['children3'].of[0].of, ts.Reference)
         self.assertEqual(rec_a.attrs['children3'].of[0].of.identifier, rec_a_ref.identifier)
-        assert isinstance(rec_a.attrs['children3'].of[1], ts.ReferenceNode)
+        assert isinstance(rec_a.attrs['children3'].of[1], ts.Reference)
         self.assertEqual(rec_a.attrs['children3'].of[1].identifier, rec_b_ref.identifier)
 
         # RecursiveB
         rec_b = builder.definitions[rec_b_ref.identifier]
-        assert isinstance(rec_b, ts.ObjectNode)
+        assert isinstance(rec_b, ts.Object)
 
-        assert isinstance(rec_b.attrs['recursive'], ts.ReferenceNode)
+        assert isinstance(rec_b.attrs['recursive'], ts.Reference)
         self.assertEqual(rec_b.attrs['recursive'].identifier, rec_a_ref.identifier)
 
-        assert isinstance(rec_b.attrs['tuples'], ts.DictNode)
-        assert isinstance(rec_b.attrs['tuples'].key, ts.StringNode)
-        assert isinstance(rec_b.attrs['tuples'].value, ts.ArrayNode)
-        assert isinstance(rec_b.attrs['tuples'].value.of, ts.TupleNode)
-        assert isinstance(rec_b.attrs['tuples'].value.of.of[0], ts.ReferenceNode)
+        assert isinstance(rec_b.attrs['tuples'], ts.Dict)
+        assert isinstance(rec_b.attrs['tuples'].key, ts.String)
+        assert isinstance(rec_b.attrs['tuples'].value, ts.Array)
+        assert isinstance(rec_b.attrs['tuples'].value.of, ts.Tuple)
+        assert isinstance(rec_b.attrs['tuples'].value.of.of[0], ts.Reference)
         self.assertEqual(rec_b.attrs['tuples'].value.of.of[0].identifier, rec_a_ref.identifier)
-        assert isinstance(rec_b.attrs['tuples'].value.of.of[1], ts.ReferenceNode)
+        assert isinstance(rec_b.attrs['tuples'].value.of.of[1], ts.Reference)
         self.assertEqual(rec_b.attrs['tuples'].value.of.of[1].identifier, rec_b_ref.identifier)
-        assert isinstance(rec_b.attrs['tuples'].value.of.of[2], ts.NumberNode)
+        assert isinstance(rec_b.attrs['tuples'].value.of.of[2], ts.Number)
 
     def test_generics(self):
         builder = ts.NodeBuilder()
 
         rec_a_ref = builder.type_to_node(RecursiveA)
-        assert isinstance(rec_a_ref, ts.ReferenceNode)
+        assert isinstance(rec_a_ref, ts.Reference)
 
         rec_b_ref = builder.type_to_node(RecursiveB)
-        assert isinstance(rec_b_ref, ts.ReferenceNode)
+        assert isinstance(rec_b_ref, ts.Reference)
 
         # GenericA
         a_ref = builder.type_to_node(GenericA)
-        assert isinstance(a_ref, ts.ReferenceNode)
+        assert isinstance(a_ref, ts.Reference)
         a = builder.definitions[a_ref.identifier]
-        assert isinstance(a, ts.ObjectNode)
+        assert isinstance(a, ts.Object)
 
-        assert isinstance(a.attrs['t'], ts.ReferenceNode)
+        assert isinstance(a.attrs['t'], ts.Reference)
         self.assertEqual(a.attrs['t'].identifier, rec_a_ref.identifier)
 
         # GenericB
         b_ref = builder.type_to_node(GenericB)
-        assert isinstance(b_ref, ts.ReferenceNode)
+        assert isinstance(b_ref, ts.Reference)
         b = builder.definitions[b_ref.identifier]
-        assert isinstance(b, ts.ObjectNode)
+        assert isinstance(b, ts.Object)
 
-        assert isinstance(b.attrs['t'], ts.ReferenceNode)
+        assert isinstance(b.attrs['t'], ts.Reference)
         self.assertEqual(b.attrs['t'].identifier, rec_b_ref.identifier)
 
         # GenericE
         e_ref = builder.type_to_node(GenericE)
-        assert isinstance(e_ref, ts.ReferenceNode)
+        assert isinstance(e_ref, ts.Reference)
         e = builder.definitions[e_ref.identifier]
-        assert isinstance(e, ts.ObjectNode)
+        assert isinstance(e, ts.Object)
 
         # GenericC makes T as Tuple[dict[str, U], V, W]
-        assert isinstance(e.attrs['t'], ts.TupleNode)
+        assert isinstance(e.attrs['t'], ts.Tuple)
         self.assertEqual(len(e.attrs['t'].of), 3)
-        assert isinstance(e.attrs['t'].of[0], ts.DictNode)
-        assert isinstance(e.attrs['t'].of[0].key, ts.StringNode)
+        assert isinstance(e.attrs['t'].of[0], ts.Dict)
+        assert isinstance(e.attrs['t'].of[0].key, ts.String)
 
         # GenericD makes U as int, V as str
-        assert isinstance(e.attrs['t'].of[0].value, ts.NumberNode)
-        assert isinstance(e.attrs['t'].of[1], ts.StringNode)
+        assert isinstance(e.attrs['t'].of[0].value, ts.Number)
+        assert isinstance(e.attrs['t'].of[1], ts.String)
         self.assertEqual(e.attrs['u'], e.attrs['t'].of[0].value)
         self.assertEqual(e.attrs['v'], e.attrs['t'].of[1])
 
         # GenericE makes W as Optional[str]
-        assert isinstance(e.attrs['t'].of[2], ts.UnionNode)
-        assert any(isinstance(t, ts.NullNode) for t in e.attrs['t'].of[2].of)
-        assert any(isinstance(t, ts.StringNode) for t in e.attrs['t'].of[2].of)
+        assert isinstance(e.attrs['t'].of[2], ts.Union)
+        assert any(isinstance(t, ts.Null) for t in e.attrs['t'].of[2].of)
+        assert any(isinstance(t, ts.String) for t in e.attrs['t'].of[2].of)
         self.assertEqual(e.attrs['w'], e.attrs['t'].of[2])
-        assert isinstance(e.attrs['w'], ts.UnionNode)
+        assert isinstance(e.attrs['w'], ts.Union)
 
-        assert isinstance(e.attrs['any'], ts.UnionNode)
+        assert isinstance(e.attrs['any'], ts.Union)
         self.assertTrue(any(t == e.attrs['u'] for t in e.attrs['any'].of))
         self.assertTrue(any(t == e.attrs['v'] for t in e.attrs['any'].of))
         self.assertTrue(all(any(t == w for t in e.attrs['any'].of)
@@ -244,70 +244,70 @@ class Tests(TestCase):
 
         # single parameter
         a_ref = builder.type_to_node(GenericTest[int])
-        assert isinstance(a_ref, ts.ReferenceNode)
-        self.assertEqual(a_ref.typevars, [ts.NumberNode()])
+        assert isinstance(a_ref, ts.Reference)
+        self.assertEqual(a_ref.typevars, [ts.Number()])
 
         a = builder.definitions[a_ref.identifier]
-        assert isinstance(a, ts.ObjectNode)
+        assert isinstance(a, ts.Object)
         self.assertEqual(len(a.attrs), 1)
-        self.assertEqual(a.attrs['t'], ts.TypeVariableNode(T))
-        self.assertEqual(a.get_generic_params(), [ts.TypeVariableNode(T)])
+        self.assertEqual(a.attrs['t'], ts.TypeVariable(T))
+        self.assertEqual(a.get_generic_params(), [ts.TypeVariable(T)])
 
         # multiple parameters
         c_ref = builder.type_to_node(GenericC[int, str, bool])
-        assert isinstance(c_ref, ts.ReferenceNode)
+        assert isinstance(c_ref, ts.Reference)
         self.assertEqual(c_ref.typevars, [
-            ts.NumberNode(),
-            ts.StringNode(),
-            ts.BooleanNode(),
+            ts.Number(),
+            ts.String(),
+            ts.Boolean(),
         ])
 
         c = builder.definitions[c_ref.identifier]
-        assert isinstance(c, ts.ObjectNode)
+        assert isinstance(c, ts.Object)
         self.assertEqual(len(c.attrs), 5)
-        self.assertEqual(c.attrs['t'], ts.TupleNode([
-            ts.DictNode(ts.StringNode(), ts.TypeVariableNode(U)),
-            ts.TypeVariableNode(V),
-            ts.TypeVariableNode(W),
+        self.assertEqual(c.attrs['t'], ts.Tuple([
+            ts.Dict(ts.String(), ts.TypeVariable(U)),
+            ts.TypeVariable(V),
+            ts.TypeVariable(W),
         ]))
-        self.assertEqual(c.attrs['u'], ts.TypeVariableNode(U))
-        self.assertEqual(c.attrs['v'], ts.TypeVariableNode(V))
-        self.assertEqual(c.attrs['w'], ts.TypeVariableNode(W))
-        self.assertEqual(c.attrs['any'], ts.UnionNode([
-            ts.TypeVariableNode(U),
-            ts.TypeVariableNode(V),
-            ts.TypeVariableNode(W),
+        self.assertEqual(c.attrs['u'], ts.TypeVariable(U))
+        self.assertEqual(c.attrs['v'], ts.TypeVariable(V))
+        self.assertEqual(c.attrs['w'], ts.TypeVariable(W))
+        self.assertEqual(c.attrs['any'], ts.Union([
+            ts.TypeVariable(U),
+            ts.TypeVariable(V),
+            ts.TypeVariable(W),
         ]))
         self.assertEqual(c.get_generic_params(), [
-            ts.TypeVariableNode(U),
-            ts.TypeVariableNode(V),
-            ts.TypeVariableNode(W),
+            ts.TypeVariable(U),
+            ts.TypeVariable(V),
+            ts.TypeVariable(W),
         ])
 
         d_ref = builder.type_to_node(GenericD[List[int]])
-        assert isinstance(d_ref, ts.ReferenceNode)
+        assert isinstance(d_ref, ts.Reference)
         self.assertEqual(d_ref.typevars, [
-            ts.ArrayNode(ts.NumberNode()),
+            ts.Array(ts.Number()),
         ])
 
         d = builder.definitions[d_ref.identifier]
-        assert isinstance(d, ts.ObjectNode)
+        assert isinstance(d, ts.Object)
         self.assertEqual(len(d.attrs), 5)
-        self.assertEqual(d.attrs['t'], ts.TupleNode([
-            ts.DictNode(ts.StringNode(), ts.NumberNode()),
-            ts.StringNode(),
-            ts.TypeVariableNode(W),
+        self.assertEqual(d.attrs['t'], ts.Tuple([
+            ts.Dict(ts.String(), ts.Number()),
+            ts.String(),
+            ts.TypeVariable(W),
         ]))
-        self.assertEqual(d.attrs['u'], ts.NumberNode())
-        self.assertEqual(d.attrs['v'], ts.StringNode())
-        self.assertEqual(d.attrs['w'], ts.TypeVariableNode(W))
-        self.assertEqual(d.attrs['any'], ts.UnionNode([
-            ts.NumberNode(),
-            ts.StringNode(),
-            ts.TypeVariableNode(W),
+        self.assertEqual(d.attrs['u'], ts.Number())
+        self.assertEqual(d.attrs['v'], ts.String())
+        self.assertEqual(d.attrs['w'], ts.TypeVariable(W))
+        self.assertEqual(d.attrs['any'], ts.Union([
+            ts.Number(),
+            ts.String(),
+            ts.TypeVariable(W),
         ]))
         self.assertEqual(d.get_generic_params(), [
-            ts.TypeVariableNode(W),
+            ts.TypeVariable(W),
         ])
 
 

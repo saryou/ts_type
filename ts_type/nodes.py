@@ -1,9 +1,9 @@
-from typing import Any, TypeVar, Iterable, List, Dict, Set, Sequence, Optional
+import typing
 
 
 class RenderContext:
     def __init__(self,
-                 definitions: Dict[str, 'TypeNode'],
+                 definitions: typing.Dict[str, 'TypeNode'],
                  indent_level: int = 0,
                  indent_unit: str = ' ' * 4,):
         self.definitions = definitions
@@ -11,7 +11,7 @@ class RenderContext:
         self.indent_unit = indent_unit
 
     def clone(self, **override) -> 'RenderContext':
-        kwargs: Dict[str, Any] = dict(
+        kwargs: typing.Dict[str, typing.Any] = dict(
             definitions=self.definitions,
             indent_level=self.indent_level,
             indent_unit=self.indent_unit)
@@ -23,16 +23,16 @@ class RenderContext:
         return self.indent_unit * self.indent_level
 
     def resolve_ref(self, node: 'TypeNode') -> 'TypeNode':
-        if isinstance(node, ReferenceNode):
+        if isinstance(node, Reference):
             return self.resolve_ref(self.definitions[node.identifier])
         return node
 
 
 class TypeNode:
-    def get_generic_params(self) -> List['TypeVariableNode']:
+    def get_generic_params(self) -> typing.List['TypeVariable']:
         return getattr(self, '__params__', [])
 
-    def add_generic_params(self, variables: list['TypeVariableNode']):
+    def add_generic_params(self, variables: typing.List['TypeVariable']):
         self.__params__ = self.get_generic_params()
         self.__params__.extend(variables)
 
@@ -50,7 +50,7 @@ class BuiltinTypeNode(TypeNode):
         return type(self) is type(other)
 
 
-class StringNode(BuiltinTypeNode, DictKeyType):
+class String(BuiltinTypeNode, DictKeyType):
     def render(self, context: RenderContext) -> str:
         return 'string'
 
@@ -58,7 +58,7 @@ class StringNode(BuiltinTypeNode, DictKeyType):
         return '[key: string]'
 
 
-class NumberNode(BuiltinTypeNode, DictKeyType):
+class Number(BuiltinTypeNode, DictKeyType):
     def render(self, context: RenderContext) -> str:
         return 'number'
 
@@ -66,27 +66,27 @@ class NumberNode(BuiltinTypeNode, DictKeyType):
         return '[key: number]'
 
 
-class BooleanNode(BuiltinTypeNode):
+class Boolean(BuiltinTypeNode):
     def render(self, context: RenderContext) -> str:
         return 'boolean'
 
 
-class NullNode(BuiltinTypeNode):
+class Null(BuiltinTypeNode):
     def render(self, context: RenderContext) -> str:
         return 'null'
 
 
-class UndefinedNode(BuiltinTypeNode):
+class Undefined(BuiltinTypeNode):
     def render(self, context: RenderContext) -> str:
         return 'undefined'
 
 
-class UnknownNode(BuiltinTypeNode):
+class Unknown(BuiltinTypeNode):
     def render(self, context: RenderContext) -> str:
         return 'unknown'
 
 
-class LiteralNode(BuiltinTypeNode):
+class Literal(BuiltinTypeNode):
     def __init__(self, literal: str):
         self.literal = literal
 
@@ -98,8 +98,8 @@ class LiteralNode(BuiltinTypeNode):
             and self.literal == other.literal
 
 
-class TypeVariableNode(BuiltinTypeNode):
-    def __init__(self, typevar: TypeVar):
+class TypeVariable(BuiltinTypeNode):
+    def __init__(self, typevar: typing.TypeVar):
         self.typevar = typevar
 
     def render(self, context: RenderContext) -> str:
@@ -110,10 +110,10 @@ class TypeVariableNode(BuiltinTypeNode):
             and self.typevar == other.typevar
 
 
-class ReferenceNode(TypeNode):
+class Reference(TypeNode):
     def __init__(self,
                  identifier: str,
-                 typevars: List[TypeNode] = []):
+                 typevars: typing.List[TypeNode] = []):
         self.identifier = identifier
         self.typevars = typevars
 
@@ -124,20 +124,20 @@ class ReferenceNode(TypeNode):
 
     def __render_typevars(self,
                           context: RenderContext,
-                          typevars: Sequence[TypeNode]) -> str:
+                          typevars: typing.Sequence[TypeNode]) -> str:
         defs = [n.render(context) for n in typevars]
         return ''.join(['<', ', '.join(defs), '>']) if typevars else ''
 
     def __eq__(self, other):
-        return isinstance(other, ReferenceNode)\
+        return isinstance(other, Reference)\
             and self.identifier == other.identifier\
             and self.typevars == other.typevars
 
 
-class ObjectNode(TypeNode):
+class Object(TypeNode):
     def __init__(self,
-                 attrs: Dict[str, TypeNode],
-                 omissible: Optional[Set[str]] = None):
+                 attrs: typing.Dict[str, TypeNode],
+                 omissible: typing.Optional[typing.Set[str]] = None):
         self.attrs = attrs
         self.omissible = omissible or set()
 
@@ -154,13 +154,13 @@ class ObjectNode(TypeNode):
         return '?' if key in self.omissible else ''
 
     def __eq__(self, other):
-        return isinstance(other, ObjectNode)\
+        return isinstance(other, Object)\
             and self.attrs == other.attrs\
             and self.omissible == other.omissible
 
 
-class TupleNode(TypeNode):
-    def __init__(self, of: List[TypeNode]):
+class Tuple(TypeNode):
+    def __init__(self, of: typing.List[TypeNode]):
         self.of = of
 
     def render(self, context: RenderContext):
@@ -169,11 +169,11 @@ class TupleNode(TypeNode):
         ]) + ']'
 
     def __eq__(self, other):
-        return isinstance(other, TupleNode)\
+        return isinstance(other, Tuple)\
             and self.of == other.of
 
 
-class ArrayNode(TypeNode):
+class Array(TypeNode):
     def __init__(self, of: TypeNode):
         self.of = of
 
@@ -181,11 +181,11 @@ class ArrayNode(TypeNode):
         return self.of.render(context) + '[]'
 
     def __eq__(self, other):
-        return isinstance(other, ArrayNode)\
+        return isinstance(other, Array)\
             and self.of == other.of
 
 
-class DictNode(TypeNode):
+class Dict(TypeNode):
     def __init__(self,
                  key: DictKeyType,
                  value: TypeNode):
@@ -202,24 +202,24 @@ class DictNode(TypeNode):
         ])
 
     def __eq__(self, other):
-        return isinstance(other, DictNode)\
+        return isinstance(other, Dict)\
             and self.key == other.key\
             and self.value == other.value
 
 
-class UnionNode(TypeNode):
-    def __init__(self, of: List[TypeNode]):
+class Union(TypeNode):
+    def __init__(self, of: typing.List[TypeNode]):
         self.of = self._unique(self._flatten(of))
 
-    def _flatten(self, of: List[TypeNode]) -> Iterable[TypeNode]:
+    def _flatten(self, of: typing.List[TypeNode]) -> typing.Iterable[TypeNode]:
         for node in of:
-            if isinstance(node, UnionNode):
+            if isinstance(node, Union):
                 yield from self._flatten(node.of)
             else:
                 yield node
 
-    def _unique(self, of: Iterable[TypeNode]) -> List[TypeNode]:
-        ret: List[TypeNode] = []
+    def _unique(self, of: typing.Iterable[TypeNode]) -> typing.List[TypeNode]:
+        ret: typing.List[TypeNode] = []
         for node in of:
             if all(n != node for n in ret):
                 ret.append(node)
@@ -231,23 +231,23 @@ class UnionNode(TypeNode):
         ]) + ')'
 
     def __eq__(self, other):
-        return isinstance(other, UnionNode)\
+        return isinstance(other, Union)\
             and self.of == other.of
 
 
 class Intersection(TypeNode):
-    def __init__(self, of: List[TypeNode]):
+    def __init__(self, of: typing.List[TypeNode]):
         self.of = self._unique(self._flatten(of))
 
-    def _flatten(self, of: List[TypeNode]) -> Iterable[TypeNode]:
+    def _flatten(self, of: typing.List[TypeNode]) -> typing.Iterable[TypeNode]:
         for node in of:
             if isinstance(node, Intersection):
                 yield from self._flatten(node.of)
             else:
                 yield node
 
-    def _unique(self, of: Iterable[TypeNode]) -> List[TypeNode]:
-        ret: List[TypeNode] = []
+    def _unique(self, of: typing.Iterable[TypeNode]) -> typing.List[TypeNode]:
+        ret: typing.List[TypeNode] = []
         for node in of:
             if all(n != node for n in ret):
                 ret.append(node)
@@ -271,12 +271,12 @@ class Keyof(TypeNode):
         return f'(keyof {self.of.render(context)})'
 
     def __eq__(self, other):
-        return isinstance(other, TupleNode)\
+        return isinstance(other, Tuple)\
             and self.of == other.of
 
 
 class CustomNode(TypeNode):
-    def __init__(self, name: str, parameters: List[TypeNode]):
+    def __init__(self, name: str, parameters: typing.List[TypeNode]):
         self.name = name
         self.parameters = parameters
 
@@ -337,34 +337,34 @@ class NonNullable(CustomNode):
 
 
 __all__ = [
-    'ArrayNode',
-    'BooleanNode',
+    'Array',
+    'Boolean',
     'BuiltinTypeNode',
-    'DictKeyType',
-    'DictNode',
-    'LiteralNode',
-    'NullNode',
-    'NumberNode',
-    'ObjectNode',
-    'ReferenceNode',
-    'RenderContext',
-    'StringNode',
-    'TupleNode',
-    'TypeNode',
-    'TypeVariableNode',
-    'UndefinedNode',
-    'UnionNode',
-    'Intersection',
-    'Keyof',
-    'UnknownNode',
     'CustomNode',
-    'Partial',
-    'Required',
-    'Readonly',
-    'Record',
-    'Pick',
-    'Omit',
+    'Dict',
+    'DictKeyType',
     'Exclude',
     'Extract',
+    'Intersection',
+    'Keyof',
+    'Literal',
     'NonNullable',
+    'Null',
+    'Number',
+    'Object',
+    'Omit',
+    'Partial',
+    'Pick',
+    'Readonly',
+    'Record',
+    'Reference',
+    'RenderContext',
+    'Required',
+    'String',
+    'Tuple',
+    'TypeNode',
+    'TypeVariable',
+    'Undefined',
+    'Union',
+    'Unknown',
 ]

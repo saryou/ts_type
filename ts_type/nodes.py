@@ -210,6 +210,7 @@ class Dict(TypeNode):
 class Union(TypeNode):
     def __init__(self, of: typing.List[TypeNode]):
         self.of = self._unique(self._flatten(of))
+        assert self.of
 
     def _flatten(self, of: typing.List[TypeNode]) -> typing.Iterable[TypeNode]:
         for node in of:
@@ -226,9 +227,9 @@ class Union(TypeNode):
         return ret
 
     def render(self, context: RenderContext):
-        return '(' + ' | '.join([
-            node.render(context) for node in self.of
-        ]) + ')'
+        return ' | '.join([
+            _render_with_parenthesis(node, context) for node in self.of
+        ])
 
     def __eq__(self, other):
         return isinstance(other, Union)\
@@ -238,6 +239,7 @@ class Union(TypeNode):
 class Intersection(TypeNode):
     def __init__(self, of: typing.List[TypeNode]):
         self.of = self._unique(self._flatten(of))
+        assert self.of
 
     def _flatten(self, of: typing.List[TypeNode]) -> typing.Iterable[TypeNode]:
         for node in of:
@@ -254,9 +256,9 @@ class Intersection(TypeNode):
         return ret
 
     def render(self, context: RenderContext):
-        return '(' + ' & '.join([
-            node.render(context) for node in self.of
-        ]) + ')'
+        return ' | '.join([
+            _render_with_parenthesis(node, context) for node in self.of
+        ])
 
     def __eq__(self, other):
         return isinstance(other, Intersection)\
@@ -268,7 +270,7 @@ class Keyof(TypeNode):
         self.of = of
 
     def render(self, context: RenderContext):
-        return f'(keyof {self.of.render(context)})'
+        return 'keyof ' + _render_with_parenthesis(self.of, context)
 
     def __eq__(self, other):
         return isinstance(other, Tuple)\
@@ -334,6 +336,20 @@ class Extract(CustomNode):
 class NonNullable(CustomNode):
     def __init__(self, type: TypeNode):
         super().__init__('NonNullable', [type])
+
+
+def _render_with_parenthesis(node: TypeNode, context: RenderContext) -> str:
+    expr = node.render(context)
+
+    if isinstance(node, (Union, Intersection)):
+        if len(node.of) == 1:
+            return expr
+        return f'({expr})'
+
+    if isinstance(node, Keyof):
+        return f'({expr})'
+
+    return expr
 
 
 __all__ = [

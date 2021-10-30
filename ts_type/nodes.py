@@ -178,7 +178,7 @@ class Array(TypeNode):
         self.of = of
 
     def render(self, context: RenderContext):
-        return self.of.render(context) + '[]'
+        return _render_with_parenthesis(self.of, context) + '[]'
 
     def __eq__(self, other):
         return isinstance(other, Array)\

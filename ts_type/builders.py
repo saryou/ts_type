@@ -113,12 +113,7 @@ class NodeBuilder:
             elif issubclass(t, Enum):
                 return self.enum_to_node(t)
             elif is_dataclass(t):
-                return self.define_ref_node(
-                    t,
-                    lambda: nodes.Object(
-                        attrs={f.name: self.type_to_node(f.type)
-                               for f in dc_fields(t)},
-                        omissible=set()))
+                return self.dataclass_to_node(t)
 
         return self.handle_unknown_type(t)
 
@@ -166,6 +161,14 @@ class NodeBuilder:
     def enum_to_node(self, enum: Type[Enum]) -> nodes.TypeNode:
         return self.define_ref_node(enum, lambda: nodes.Union(
             [self.literal_to_node(i.name) for i in enum]))
+
+    def dataclass_to_node(self, dc: Type[Any]) -> nodes.TypeNode:
+        return self.define_ref_node(
+            dc,
+            lambda: nodes.Object(
+                attrs={f.name: self.type_to_node(f.type)
+                       for f in dc_fields(dc)},
+                omissible=set()))
 
     @contextmanager
     def _begin_module_context(self, t: Optional[Type]):

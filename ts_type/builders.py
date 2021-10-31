@@ -111,8 +111,7 @@ class NodeBuilder:
             elif issubclass(t, (int, float)):
                 return nodes.Number()
             elif issubclass(t, Enum):
-                return self.define_ref_node(t, lambda: nodes.Union(
-                    [self.literal_to_node(i) for i in t]))
+                return self.enum_to_node(t)
             elif is_dataclass(t):
                 return self.define_ref_node(
                     t,
@@ -161,9 +160,12 @@ class NodeBuilder:
         return nodes.Reference(_id, ref_typevars)
 
     def literal_to_node(self, value: Any) -> nodes.Literal:
-        literal = value.name if isinstance(value, Enum) else value
-        assert isinstance(literal, (int, bool, str))
-        return nodes.Literal(json.dumps(literal))
+        assert isinstance(value, (int, bool, str))
+        return nodes.Literal(json.dumps(value))
+
+    def enum_to_node(self, enum: Type[Enum]) -> nodes.TypeNode:
+        return self.define_ref_node(enum, lambda: nodes.Union(
+            [self.literal_to_node(i.name) for i in enum]))
 
     @contextmanager
     def _begin_module_context(self, t: Optional[Type]):

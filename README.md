@@ -149,13 +149,11 @@ You can customize builder to supports any objects. I use my own library [cleaned
 
 ```python3
 class Builder(ts.NodeBuilder):
-    def handle_unknown_type(self,
-                            t: Any,
-                            unknown_node: bool) -> ts.TypeNode:
+    def handle_unknown_type(self, t: Any) -> ts.TypeNode:
         if isinstance(t, type):
             if issubclass(t, cl.Cleaned):
                 return self.define_cleaned(t)
-        return super().handle_unknown_type(t, unknown_node)
+        return super().handle_unknown_type(t)
 
     def define_cleaned(self,
                        t: Type[cl.Cleaned],

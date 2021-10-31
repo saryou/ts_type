@@ -1,10 +1,10 @@
 import os
 from pathlib import Path
 from collections import defaultdict
-from typing import Any, Type, Union, TypeVar, overload, Dict, Optional
+from typing import Any, Type, Union, TypeVar, overload, Dict
 
 from .nodes import TypeNode
-from .builders import NodeBuilder, EnumMemberHandler
+from .builders import NodeBuilder
 
 
 T = TypeVar('T')
@@ -49,15 +49,14 @@ class TypeDefinitionGenerator:
                  output_dir: Union[str, Path],
                  builder_cls: Type[NodeBuilder] = NodeBuilder,
                  file_extension: str = 'gen.ts',
-                 delete_conflicting_outputs: bool = True,
-                 enum_member_handler: Optional[EnumMemberHandler] = None):
+                 delete_conflicting_outputs: bool = True):
         basedir = Path(output_dir)
         file_extension = file_extension[1:]\
             if file_extension.startswith('.') else file_extension
         filepaths = {p for p in basedir.glob(f'**/*.{file_extension}')}\
             if delete_conflicting_outputs else set()
 
-        output = self.render(builder_cls, enum_member_handler)
+        output = self.render(builder_cls)
         for output_filepath in self.types.keys():
             filepath = basedir / (f'{output_filepath}.{file_extension}')
             filepaths.discard(filepath)
@@ -73,12 +72,10 @@ class TypeDefinitionGenerator:
             os.remove(filepath)
 
     def render(self,
-               builder_cls: Type[NodeBuilder] = NodeBuilder,
-               enum_member_handler: Optional[EnumMemberHandler] = None)\
-            -> Dict[str, str]:
+               builder_cls: Type[NodeBuilder] = NodeBuilder) -> Dict[str, str]:
         result: Dict[str, str] = dict()
         for output_filepath, types in self.types.items():
-            builder = builder_cls(enum_member=enum_member_handler)
+            builder = builder_cls()
             defs: Dict[str, TypeNode] = dict()
 
             for name, value in types.items():

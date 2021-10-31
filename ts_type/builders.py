@@ -17,29 +17,13 @@ T = TypeVar('T')
 BuilderT = TypeVar('BuilderT', bound='NodeBuilder')
 
 
-class EnumMemberHandler(Generic[BuilderT]):
-    def member_to_node(self,
-                       member: Enum,
-                       builder: BuilderT) -> nodes.TypeNode:
-        raise NotImplementedError()
-
-
-class UseNameForEnumMember(EnumMemberHandler[BuilderT]):
-    def member_to_node(self,
-                       member: Enum,
-                       builder: BuilderT) -> nodes.TypeNode:
-        return builder.literal_to_node(member.name)
-
-
 class NodeBuilder:
     """NodeBuilder converts python objects to typescript's types."""
 
-    def __init__(self,
-                 enum_member: Optional[EnumMemberHandler] = None) -> None:
+    def __init__(self) -> None:
         self._modules: Dict[str, Any] = {}
         self._definitions: Dict[str, nodes.TypeNode] = {}
         self._stack: List[Tuple[str, str, Any]] = []
-        self._enum_member = enum_member or UseNameForEnumMember()
 
     @property
     def definitions(self) -> Dict[str, Any]:
@@ -65,8 +49,7 @@ class NodeBuilder:
 
         return '\n\n'.join([render(k) for k in ref_names])
 
-    def type_to_node(self, t: Any, unknown_node: bool = False)\
-            -> nodes.TypeNode:
+    def type_to_node(self, t: Any) -> nodes.TypeNode:
         if t in [None, type(None)]:
             return nodes.Null()
 
@@ -76,23 +59,23 @@ class NodeBuilder:
         if origin is Union:
             assert args
             if len(args) == 1:
-                return self.type_to_node(args[0], unknown_node)
+                return self.type_to_node(args[0])
             return nodes.Union(
-                of=[self.type_to_node(a, unknown_node) for a in args])
+                of=[self.type_to_node(a) for a in args])
         elif origin is tuple:
             assert args
             return nodes.Tuple(
-                [self.type_to_node(a, unknown_node) for a in args])
+                [self.type_to_node(a) for a in args])
         elif origin is list or origin is set:
             assert args
-            return nodes.Array(self.type_to_node(args[0], unknown_node))
+            return nodes.Array(self.type_to_node(args[0]))
         elif origin is dict:
             assert len(args) > 1
-            key = self.type_to_node(args[0], unknown_node)
+            key = self.type_to_node(args[0])
             assert isinstance(key, nodes.DictKeyType)
             return nodes.Dict(
                 key=key,
-                value=self.type_to_node(args[1], unknown_node))
+                value=self.type_to_node(args[1]))
         elif origin is Literal:
             assert args
             literals = [self.literal_to_node(a) for a in args]
@@ -100,22 +83,22 @@ class NodeBuilder:
                 return nodes.Union(of=cast(List[nodes.TypeNode], literals))
             return literals[0]
         elif origin:
-            node = self.type_to_node(origin, unknown_node)
+            node = self.type_to_node(origin)
             if isinstance(node, nodes.Reference):
                 node.typevars = [self.type_to_node(t) for t in args]
             return node
         elif isinstance(t, str):
-            return self.type_to_node(self._resolve_annotation(t), unknown_node)
+            return self.type_to_node(self._resolve_annotation(t))
         elif isinstance(t, TypeVar):
             try:
                 _t = self._resolve_typevar(t)
             except AssertionError:
                 return nodes.TypeVariable(typevar=t)
-            return self.type_to_node(_t, unknown_node)
+            return self.type_to_node(_t)
         elif isinstance(t, ForwardRef):
             _globals = self._current_module.__dict__
             evaluated = t._evaluate(_globals, None, set())  # type: ignore
-            return self.type_to_node(evaluated, unknown_node)
+            return self.type_to_node(evaluated)
         elif isinstance(t, NodeCompatible):
             return t.convert_to_node(self)
         elif isinstance(t, type):
@@ -128,23 +111,13 @@ class NodeBuilder:
             elif issubclass(t, (int, float)):
                 return nodes.Number()
             elif issubclass(t, Enum):
-                return self.define_ref_node(t, lambda: nodes.Union(
-                    [self._enum_member.member_to_node(i, self) for i in t]))
+                return self.enum_to_node(t)
             elif is_dataclass(t):
-                return self.define_ref_node(
-                    t,
-                    lambda: nodes.Object(
-                        attrs={f.name: self.type_to_node(f.type, unknown_node)
-                               for f in dc_fields(t)},
-                        omissible=set()))
+                return self.dataclass_to_node(t)
 
-        return self.handle_unknown_type(t, unknown_node)
+        return self.handle_unknown_type(t)
 
-    def handle_unknown_type(self,
-                            t: Any,
-                            unknown_node: bool) -> nodes.TypeNode:
-        if unknown_node:
-            return nodes.Unknown()
+    def handle_unknown_type(self, t: Any) -> nodes.TypeNode:
         raise UnknownTypeError(f'Type `{t}` is not supported.')
 
     def define_ref_node(
@@ -184,6 +157,18 @@ class NodeBuilder:
     def literal_to_node(self, value: Any) -> nodes.Literal:
         assert isinstance(value, (int, bool, str))
         return nodes.Literal(json.dumps(value))
+
+    def enum_to_node(self, enum: Type[Enum]) -> nodes.TypeNode:
+        return self.define_ref_node(enum, lambda: nodes.Union(
+            [self.literal_to_node(i.name) for i in enum]))
+
+    def dataclass_to_node(self, dc: Type[Any]) -> nodes.TypeNode:
+        return self.define_ref_node(
+            dc,
+            lambda: nodes.Object(
+                attrs={f.name: self.type_to_node(f.type)
+                       for f in dc_fields(dc)},
+                omissible=set()))
 
     @contextmanager
     def _begin_module_context(self, t: Optional[Type]):
@@ -237,6 +222,4 @@ __all__ = [
     'NodeBuilder',
     'NodeCompatibleClass',
     'NodeCompatible',
-    'EnumMemberHandler',
-    'UseNameForEnumMember',
 ]

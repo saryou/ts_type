@@ -17,13 +17,29 @@ T = TypeVar('T')
 BuilderT = TypeVar('BuilderT', bound='NodeBuilder')
 
 
+class EnumMemberHandler(Generic[BuilderT]):
+    def member_to_node(self,
+                       member: Enum,
+                       builder: BuilderT) -> nodes.TypeNode:
+        raise NotImplementedError()
+
+
+class UseNameForEnumMember(EnumMemberHandler[BuilderT]):
+    def member_to_node(self,
+                       member: Enum,
+                       builder: BuilderT) -> nodes.TypeNode:
+        return builder.literal_to_node(member.name)
+
+
 class NodeBuilder:
     """NodeBuilder converts python objects to typescript's types."""
 
-    def __init__(self) -> None:
+    def __init__(self,
+                 enum_member: Optional[EnumMemberHandler] = None) -> None:
         self._modules: Dict[str, Any] = {}
         self._definitions: Dict[str, nodes.TypeNode] = {}
         self._stack: List[Tuple[str, str, Any]] = []
+        self._enum_member = enum_member or UseNameForEnumMember()
 
     @property
     def definitions(self) -> Dict[str, Any]:
@@ -113,7 +129,7 @@ class NodeBuilder:
                 return nodes.Number()
             elif issubclass(t, Enum):
                 return self.define_ref_node(t, lambda: nodes.Union(
-                    [self.literal_to_node(i) for i in t]))
+                    [self._enum_member.member_to_node(i, self) for i in t]))
             elif is_dataclass(t):
                 return self.define_ref_node(
                     t,
@@ -166,9 +182,8 @@ class NodeBuilder:
         return nodes.Reference(_id, ref_typevars)
 
     def literal_to_node(self, value: Any) -> nodes.Literal:
-        literal = value.name if isinstance(value, Enum) else value
-        assert isinstance(literal, (int, bool, str))
-        return nodes.Literal(json.dumps(literal))
+        assert isinstance(value, (int, bool, str))
+        return nodes.Literal(json.dumps(value))
 
     @contextmanager
     def _begin_module_context(self, t: Optional[Type]):
@@ -222,4 +237,6 @@ __all__ = [
     'NodeBuilder',
     'NodeCompatibleClass',
     'NodeCompatible',
+    'EnumMemberHandler',
+    'UseNameForEnumMember',
 ]

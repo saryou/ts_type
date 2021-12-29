@@ -16,6 +16,15 @@ from . import nodes
 T = TypeVar('T')
 BuilderT = TypeVar('BuilderT', bound='NodeBuilder')
 
+try:
+    from types import UnionType  # type: ignore
+
+    def _is_union_type(t: Any) -> bool:
+        return isinstance(t, UnionType)
+except ImportError:
+    def _is_union_type(t: Any) -> bool:
+        return False
+
 
 class NodeBuilder:
     """NodeBuilder converts python objects to typescript's types."""
@@ -56,7 +65,7 @@ class NodeBuilder:
         origin = getattr(t, '__origin__', None)
         args = getattr(t, '__args__', tuple())
 
-        if origin is Union:
+        if origin is Union or _is_union_type(t):
             assert args
             if len(args) == 1:
                 return self.type_to_node(args[0])

@@ -59,11 +59,21 @@ class Tests(TestCase):
     def test_union(self):
         builder = ts.NodeBuilder()
 
-        union = builder.type_to_node(Union[str, Literal[1]])
-        assert isinstance(union, ts.Union)
-        assert isinstance(union.of[0], ts.String)
-        assert isinstance(union.of[1], ts.Literal)
-        self.assertEqual(union.of[1].literal, '1')
+        union1 = builder.type_to_node(Union[str, Literal[1]])
+        assert isinstance(union1, ts.Union)
+        assert isinstance(union1.of[0], ts.String)
+        assert isinstance(union1.of[1], ts.Literal)
+        self.assertEqual(union1.of[1].literal, '1')
+
+        try:
+            union_type = eval('int | str')
+        except TypeError:
+            pass
+        else:
+            union2 = builder.type_to_node(union_type)
+            assert isinstance(union2, ts.Union)
+            assert isinstance(union2.of[0], ts.Number)
+            assert isinstance(union2.of[1], ts.String)
 
     def test_array(self):
         builder = ts.NodeBuilder()

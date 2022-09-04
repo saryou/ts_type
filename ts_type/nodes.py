@@ -42,15 +42,15 @@ class TypeNode:
 
 class DictKeyType(TypeNode):
     def render_dict_key(self, context: RenderContext) -> str:
-        raise NotImplementedError()
+        return f'[K in {self.render(context)}]'
 
 
-class BuiltinTypeNode(TypeNode):
+class GlobalTypeNode(TypeNode):
     def __eq__(self, other):
         return type(self) is type(other)
 
 
-class String(BuiltinTypeNode, DictKeyType):
+class String(GlobalTypeNode, DictKeyType):
     def render(self, context: RenderContext) -> str:
         return 'string'
 
@@ -58,7 +58,7 @@ class String(BuiltinTypeNode, DictKeyType):
         return '[key: string]'
 
 
-class Number(BuiltinTypeNode, DictKeyType):
+class Number(GlobalTypeNode, DictKeyType):
     def render(self, context: RenderContext) -> str:
         return 'number'
 
@@ -66,27 +66,27 @@ class Number(BuiltinTypeNode, DictKeyType):
         return '[key: number]'
 
 
-class Boolean(BuiltinTypeNode):
+class Boolean(GlobalTypeNode):
     def render(self, context: RenderContext) -> str:
         return 'boolean'
 
 
-class Null(BuiltinTypeNode):
+class Null(GlobalTypeNode):
     def render(self, context: RenderContext) -> str:
         return 'null'
 
 
-class Undefined(BuiltinTypeNode):
+class Undefined(GlobalTypeNode):
     def render(self, context: RenderContext) -> str:
         return 'undefined'
 
 
-class Unknown(BuiltinTypeNode):
+class Unknown(GlobalTypeNode):
     def render(self, context: RenderContext) -> str:
         return 'unknown'
 
 
-class Literal(BuiltinTypeNode):
+class Literal(GlobalTypeNode):
     def __init__(self, literal: str):
         self.literal = literal
 
@@ -98,7 +98,7 @@ class Literal(BuiltinTypeNode):
             and self.literal == other.literal
 
 
-class TypeVariable(BuiltinTypeNode):
+class TypeVariable(GlobalTypeNode):
     def __init__(self, typevar: typing.TypeVar):
         self.typevar = typevar
 
@@ -110,7 +110,7 @@ class TypeVariable(BuiltinTypeNode):
             and self.typevar == other.typevar
 
 
-class Reference(TypeNode):
+class Reference(DictKeyType):
     def __init__(self,
                  identifier: str,
                  typevars: typing.List[TypeNode] = []):
@@ -207,7 +207,7 @@ class Dict(TypeNode):
             and self.value == other.value
 
 
-class Union(TypeNode):
+class Union(DictKeyType):
     def __init__(self, of: typing.List[TypeNode]):
         self.of = self._unique(self._flatten(of))
         assert self.of
@@ -265,7 +265,7 @@ class Intersection(TypeNode):
             and self.of == other.of
 
 
-class Keyof(TypeNode):
+class Keyof(DictKeyType):
     def __init__(self, of: TypeNode):
         self.of = of
 
@@ -277,7 +277,22 @@ class Keyof(TypeNode):
             and self.of == other.of
 
 
-class CustomNode(TypeNode):
+class Lookup(DictKeyType):
+    def __init__(self, node: TypeNode, lookup: TypeNode):
+        self.node = node
+        self.lookup = lookup
+
+    def render(self, context: RenderContext) -> str:
+        return _render_with_parenthesis(self.node, context)\
+            + f'[{self.lookup.render(context)}]'
+
+    def __eq__(self, other):
+        return isinstance(other, Lookup)\
+            and self.node == other.node\
+            and self.lookup == other.lookup
+
+
+class UtilityNode(TypeNode):
     def __init__(self, name: str, parameters: typing.List[TypeNode]):
         self.name = name
         self.parameters = parameters
@@ -293,47 +308,47 @@ class CustomNode(TypeNode):
             and self.parameters == other.parameters
 
 
-class Partial(CustomNode):
+class Partial(UtilityNode):
     def __init__(self, type: TypeNode):
         super().__init__('Partial', [type])
 
 
-class Required(CustomNode):
+class Required(UtilityNode):
     def __init__(self, type: TypeNode):
         super().__init__('Required', [type])
 
 
-class Readonly(CustomNode):
+class Readonly(UtilityNode):
     def __init__(self, type: TypeNode):
         super().__init__('Readonly', [type])
 
 
-class Record(CustomNode):
+class Record(UtilityNode):
     def __init__(self, keys: TypeNode, type: TypeNode):
         super().__init__('Record', [keys, type])
 
 
-class Pick(CustomNode):
+class Pick(UtilityNode):
     def __init__(self, type: TypeNode, keys: TypeNode):
         super().__init__('Pick', [type, keys])
 
 
-class Omit(CustomNode):
+class Omit(UtilityNode):
     def __init__(self, type: TypeNode, keys: TypeNode):
         super().__init__('Omit', [type, keys])
 
 
-class Exclude(CustomNode):
+class Exclude(UtilityNode):
     def __init__(self, type: TypeNode, excluded_union: TypeNode):
         super().__init__('Exclude', [type, excluded_union])
 
 
-class Extract(CustomNode):
+class Extract(UtilityNode):
     def __init__(self, type: TypeNode, union: TypeNode):
         super().__init__('Extract', [type, union])
 
 
-class NonNullable(CustomNode):
+class NonNullable(UtilityNode):
     def __init__(self, type: TypeNode):
         super().__init__('NonNullable', [type])
 
@@ -355,15 +370,15 @@ def _render_with_parenthesis(node: TypeNode, context: RenderContext) -> str:
 __all__ = [
     'Array',
     'Boolean',
-    'BuiltinTypeNode',
-    'CustomNode',
     'Dict',
     'DictKeyType',
     'Exclude',
     'Extract',
+    'GlobalTypeNode',
     'Intersection',
     'Keyof',
     'Literal',
+    'Lookup',
     'NonNullable',
     'Null',
     'Number',
@@ -383,4 +398,5 @@ __all__ = [
     'Undefined',
     'Union',
     'Unknown',
+    'UtilityNode',
 ]

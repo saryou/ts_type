@@ -45,12 +45,12 @@ class DictKeyType(TypeNode):
         raise NotImplementedError()
 
 
-class BuiltinTypeNode(TypeNode):
+class GlobalTypeNode(TypeNode):
     def __eq__(self, other):
         return type(self) is type(other)
 
 
-class String(BuiltinTypeNode, DictKeyType):
+class String(GlobalTypeNode, DictKeyType):
     def render(self, context: RenderContext) -> str:
         return 'string'
 
@@ -58,7 +58,7 @@ class String(BuiltinTypeNode, DictKeyType):
         return '[key: string]'
 
 
-class Number(BuiltinTypeNode, DictKeyType):
+class Number(GlobalTypeNode, DictKeyType):
     def render(self, context: RenderContext) -> str:
         return 'number'
 
@@ -66,27 +66,27 @@ class Number(BuiltinTypeNode, DictKeyType):
         return '[key: number]'
 
 
-class Boolean(BuiltinTypeNode):
+class Boolean(GlobalTypeNode):
     def render(self, context: RenderContext) -> str:
         return 'boolean'
 
 
-class Null(BuiltinTypeNode):
+class Null(GlobalTypeNode):
     def render(self, context: RenderContext) -> str:
         return 'null'
 
 
-class Undefined(BuiltinTypeNode):
+class Undefined(GlobalTypeNode):
     def render(self, context: RenderContext) -> str:
         return 'undefined'
 
 
-class Unknown(BuiltinTypeNode):
+class Unknown(GlobalTypeNode):
     def render(self, context: RenderContext) -> str:
         return 'unknown'
 
 
-class Literal(BuiltinTypeNode):
+class Literal(GlobalTypeNode):
     def __init__(self, literal: str):
         self.literal = literal
 
@@ -98,7 +98,7 @@ class Literal(BuiltinTypeNode):
             and self.literal == other.literal
 
 
-class TypeVariable(BuiltinTypeNode):
+class TypeVariable(GlobalTypeNode):
     def __init__(self, typevar: typing.TypeVar):
         self.typevar = typevar
 
@@ -355,7 +355,7 @@ def _render_with_parenthesis(node: TypeNode, context: RenderContext) -> str:
 __all__ = [
     'Array',
     'Boolean',
-    'BuiltinTypeNode',
+    'GlobalTypeNode',
     'CustomNode',
     'Dict',
     'DictKeyType',

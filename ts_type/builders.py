@@ -129,19 +129,38 @@ class NodeBuilder:
     def handle_unknown_type(self, t: Any) -> nodes.TypeNode:
         raise UnknownTypeError(f'Type `{t}` is not supported.')
 
+    class RefSource:
+        def __init__(self,
+                     type: Union[type, None],
+                     identifier: str):
+            self.type = type
+            self.identifier = identifier
+
+        @classmethod
+        def from_type(cls, t: type) -> 'NodeBuilder.RefSource':
+            return cls(
+                type=t,
+                identifier=re.sub(r'\.', '__', '.'.join(
+                    [t.__module__, t.__qualname__]))
+            )
+
+        @classmethod
+        def from_identifier(cls, t: str) -> 'NodeBuilder.RefSource':
+            return cls(type=None, identifier=t)
+
     def define_ref_node(
             self,
-            type_or_id: Union[type, str],
+            source: Union[RefSource, type, str],
             define: Callable[[], nodes.TypeNode],
             generic_params: Optional[List[TypeVar]] = None,
             ref_typevars: List[nodes.TypeNode] = []) -> nodes.Reference:
-        if isinstance(type_or_id, str):
-            t = None
-            _id = type_or_id
-        else:
-            t = type_or_id
-            _id = '.'.join([t.__module__, t.__qualname__])
-            _id = re.sub(r'\.', '__', _id)
+        if isinstance(source, str):
+            source = self.RefSource.from_identifier(source)
+        elif isinstance(source, type):
+            source = self.RefSource.from_type(source)
+
+        t = source.type
+        _id = source.identifier
 
         defs = self._definitions
         if _id not in defs:

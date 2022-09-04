@@ -42,7 +42,7 @@ class TypeNode:
 
 class DictKeyType(TypeNode):
     def render_dict_key(self, context: RenderContext) -> str:
-        raise NotImplementedError()
+        return f'[K in {self.render(context)}]'
 
 
 class GlobalTypeNode(TypeNode):
@@ -110,7 +110,7 @@ class TypeVariable(GlobalTypeNode):
             and self.typevar == other.typevar
 
 
-class Reference(TypeNode):
+class Reference(DictKeyType):
     def __init__(self,
                  identifier: str,
                  typevars: typing.List[TypeNode] = []):
@@ -207,7 +207,7 @@ class Dict(TypeNode):
             and self.value == other.value
 
 
-class Union(TypeNode):
+class Union(DictKeyType):
     def __init__(self, of: typing.List[TypeNode]):
         self.of = self._unique(self._flatten(of))
         assert self.of
@@ -265,7 +265,7 @@ class Intersection(TypeNode):
             and self.of == other.of
 
 
-class Keyof(TypeNode):
+class Keyof(DictKeyType):
     def __init__(self, of: TypeNode):
         self.of = of
 

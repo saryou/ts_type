@@ -277,7 +277,7 @@ class Keyof(TypeNode):
             and self.of == other.of
 
 
-class CustomNode(TypeNode):
+class UtilityNode(TypeNode):
     def __init__(self, name: str, parameters: typing.List[TypeNode]):
         self.name = name
         self.parameters = parameters
@@ -293,47 +293,47 @@ class CustomNode(TypeNode):
             and self.parameters == other.parameters
 
 
-class Partial(CustomNode):
+class Partial(UtilityNode):
     def __init__(self, type: TypeNode):
         super().__init__('Partial', [type])
 
 
-class Required(CustomNode):
+class Required(UtilityNode):
     def __init__(self, type: TypeNode):
         super().__init__('Required', [type])
 
 
-class Readonly(CustomNode):
+class Readonly(UtilityNode):
     def __init__(self, type: TypeNode):
         super().__init__('Readonly', [type])
 
 
-class Record(CustomNode):
+class Record(UtilityNode):
     def __init__(self, keys: TypeNode, type: TypeNode):
         super().__init__('Record', [keys, type])
 
 
-class Pick(CustomNode):
+class Pick(UtilityNode):
     def __init__(self, type: TypeNode, keys: TypeNode):
         super().__init__('Pick', [type, keys])
 
 
-class Omit(CustomNode):
+class Omit(UtilityNode):
     def __init__(self, type: TypeNode, keys: TypeNode):
         super().__init__('Omit', [type, keys])
 
 
-class Exclude(CustomNode):
+class Exclude(UtilityNode):
     def __init__(self, type: TypeNode, excluded_union: TypeNode):
         super().__init__('Exclude', [type, excluded_union])
 
 
-class Extract(CustomNode):
+class Extract(UtilityNode):
     def __init__(self, type: TypeNode, union: TypeNode):
         super().__init__('Extract', [type, union])
 
 
-class NonNullable(CustomNode):
+class NonNullable(UtilityNode):
     def __init__(self, type: TypeNode):
         super().__init__('NonNullable', [type])
 
@@ -356,7 +356,7 @@ __all__ = [
     'Array',
     'Boolean',
     'GlobalTypeNode',
-    'CustomNode',
+    'UtilityNode',
     'Dict',
     'DictKeyType',
     'Exclude',

@@ -277,6 +277,21 @@ class Keyof(DictKeyType):
             and self.of == other.of
 
 
+class Lookup(DictKeyType):
+    def __init__(self, node: TypeNode, lookup: TypeNode):
+        self.node = node
+        self.lookup = lookup
+
+    def render(self, context: RenderContext) -> str:
+        return _render_with_parenthesis(self.node, context)\
+            + f'[{self.lookup.render(context)}]'
+
+    def __eq__(self, other):
+        return isinstance(other, Lookup)\
+            and self.node == other.node\
+            and self.lookup == other.lookup
+
+
 class UtilityNode(TypeNode):
     def __init__(self, name: str, parameters: typing.List[TypeNode]):
         self.name = name
@@ -355,15 +370,15 @@ def _render_with_parenthesis(node: TypeNode, context: RenderContext) -> str:
 __all__ = [
     'Array',
     'Boolean',
-    'GlobalTypeNode',
-    'UtilityNode',
     'Dict',
     'DictKeyType',
     'Exclude',
     'Extract',
+    'GlobalTypeNode',
     'Intersection',
     'Keyof',
     'Literal',
+    'Lookup',
     'NonNullable',
     'Null',
     'Number',
@@ -383,4 +398,5 @@ __all__ = [
     'Undefined',
     'Union',
     'Unknown',
+    'UtilityNode',
 ]

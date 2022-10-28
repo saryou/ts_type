@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 from datetime import datetime, date, time
 from enum import Enum
-from typing import Union, Literal, List, Set, Tuple, Dict, Optional, TypeVar, Generic
+from typing import Union, Literal, List, Set, Tuple, Dict, Optional, TypeVar,\
+    Generic
 from unittest import TestCase
 
 import ts_type as ts
@@ -160,35 +161,42 @@ class Tests(TestCase):
 
         assert isinstance(rec_a.attrs['children1'], ts.Array)
         assert isinstance(rec_a.attrs['children1'].of, ts.Reference)
-        self.assertEqual(rec_a.attrs['children1'].of.identifier, rec_a_ref.identifier)
+        self.assertEqual(rec_a.attrs['children1'].of.identifier,
+                         rec_a_ref.identifier)
 
         assert isinstance(rec_a.attrs['children2'], ts.Dict)
         assert isinstance(rec_a.attrs['children2'].key, ts.String)
         assert isinstance(rec_a.attrs['children2'].value, ts.Reference)
-        self.assertEqual(rec_a.attrs['children2'].value.identifier, rec_a_ref.identifier)
+        self.assertEqual(rec_a.attrs['children2'].value.identifier,
+                         rec_a_ref.identifier)
 
         assert isinstance(rec_a.attrs['children3'], ts.Union)
         assert isinstance(rec_a.attrs['children3'].of[0], ts.Array)
         assert isinstance(rec_a.attrs['children3'].of[0].of, ts.Reference)
-        self.assertEqual(rec_a.attrs['children3'].of[0].of.identifier, rec_a_ref.identifier)
+        self.assertEqual(rec_a.attrs['children3'].of[0].of.identifier,
+                         rec_a_ref.identifier)
         assert isinstance(rec_a.attrs['children3'].of[1], ts.Reference)
-        self.assertEqual(rec_a.attrs['children3'].of[1].identifier, rec_b_ref.identifier)
+        self.assertEqual(rec_a.attrs['children3'].of[1].identifier,
+                         rec_b_ref.identifier)
 
         # RecursiveB
         rec_b = builder.definitions[rec_b_ref.identifier]
         assert isinstance(rec_b, ts.Object)
 
         assert isinstance(rec_b.attrs['recursive'], ts.Reference)
-        self.assertEqual(rec_b.attrs['recursive'].identifier, rec_a_ref.identifier)
+        self.assertEqual(rec_b.attrs['recursive'].identifier,
+                         rec_a_ref.identifier)
 
         assert isinstance(rec_b.attrs['tuples'], ts.Dict)
         assert isinstance(rec_b.attrs['tuples'].key, ts.String)
         assert isinstance(rec_b.attrs['tuples'].value, ts.Array)
         assert isinstance(rec_b.attrs['tuples'].value.of, ts.Tuple)
         assert isinstance(rec_b.attrs['tuples'].value.of.of[0], ts.Reference)
-        self.assertEqual(rec_b.attrs['tuples'].value.of.of[0].identifier, rec_a_ref.identifier)
+        self.assertEqual(rec_b.attrs['tuples'].value.of.of[0].identifier,
+                         rec_a_ref.identifier)
         assert isinstance(rec_b.attrs['tuples'].value.of.of[1], ts.Reference)
-        self.assertEqual(rec_b.attrs['tuples'].value.of.of[1].identifier, rec_b_ref.identifier)
+        self.assertEqual(rec_b.attrs['tuples'].value.of.of[1].identifier,
+                         rec_b_ref.identifier)
         assert isinstance(rec_b.attrs['tuples'].value.of.of[2], ts.Number)
 
     def test_generics(self):

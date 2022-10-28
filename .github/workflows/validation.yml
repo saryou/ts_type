@@ -33,6 +33,9 @@ jobs:
     - name: Lint with mypy
       run: |
         mypy ts_type
+    - name: Lint with pyright
+      run: |
+        pyright ts_type tests
     - name: Test with unittest
       run: |
         python -m unittest

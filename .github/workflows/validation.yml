@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.9', '3.10']
+        python-version: ['3.9', '3.10', '3.11']
 
     steps:
     - uses: actions/checkout@v2
@@ -29,10 +29,13 @@ jobs:
         pip install -r requirements.txt
     - name: Lint with flake8
       run: |
-        flake8 ts_type
+        flake8 ts_type tests
     - name: Lint with mypy
       run: |
-        mypy ts_type
+        mypy ts_type tests
+    - name: Lint with pyright
+      run: |
+        pyright ts_type tests
     - name: Test with unittest
       run: |
         python -m unittest

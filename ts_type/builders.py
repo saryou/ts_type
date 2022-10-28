@@ -63,7 +63,7 @@ class NodeBuilder:
             return nodes.Null()
 
         origin = getattr(t, '__origin__', None)
-        args = getattr(t, '__args__', tuple())
+        args: tuple[Any, ...] = getattr(t, '__args__', tuple())
 
         if origin is Union or _is_union_type(t):
             assert args

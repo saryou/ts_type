@@ -23,7 +23,7 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    packages=["ts_type"],
+    packages=setuptools.find_packages(exclude=["tests"]),
     package_dir={"ts_type": "ts_type"},
     python_requires=">=3.9",
 )

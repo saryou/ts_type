@@ -25,5 +25,6 @@ setuptools.setup(
     ],
     packages=setuptools.find_packages(exclude=["tests"]),
     package_dir={"ts_type": "ts_type"},
+    package_data={"ts_type": ["py.typed"]},
     python_requires=">=3.9",
 )

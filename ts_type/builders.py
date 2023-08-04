@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from dataclasses import fields as dc_fields, is_dataclass
 from importlib import import_module
 from typing import Optional, Any, Type, Callable, Union, ForwardRef, TypeVar,\
-    Literal, List, Dict, Set, Tuple, cast, Generic
+    Literal, List, Dict, Set, Tuple, cast, Generic, Sequence
 
 from .exceptions import UnknownTypeError
 from .utils import resolve_typevar
@@ -50,9 +50,11 @@ class NodeBuilder:
 
         def render(k: str) -> str:
             export = 'export ' if k in to_export else ''
+
             ref = nodes.Reference(k)
             node = ctx.definitions[k]
-            lhs = f'{export}type {ref.render(ctx)}'
+            with ctx.enable_typevar_definition():
+                lhs = f'{export}type {ref.render(ctx)}'
             rhs = f'{node.render(ctx)};'
             return f'{lhs} = {rhs}'
 
@@ -152,7 +154,7 @@ class NodeBuilder:
             self,
             source: Union[RefSource, type, str],
             define: Callable[[], nodes.TypeNode],
-            generic_params: Optional[List[TypeVar]] = None,
+            generic_params: Optional[Sequence[TypeVar | nodes.TypeVariable]] = None,
             ref_typevars: List[nodes.TypeNode] = []) -> nodes.Reference:
         if isinstance(source, str):
             source = self.RefSource.from_identifier(source)
@@ -171,7 +173,8 @@ class NodeBuilder:
                     type_node = define()
                     if generic_params is not None:
                         type_node.add_generic_params(
-                            [nodes.TypeVariable(p) for p in generic_params])
+                            [p if isinstance(p, nodes.TypeVariable) else nodes.TypeVariable(p)
+                             for p in generic_params])
                     elif (params := getattr(t, '__parameters__', None)):
                         type_node.add_generic_params(
                             [nodes.TypeVariable(p) for p in params])

@@ -1,4 +1,5 @@
 import typing
+import contextlib
 
 
 class RenderContext:
@@ -9,6 +10,7 @@ class RenderContext:
         self.definitions = definitions
         self.indent_level = indent_level
         self.indent_unit = indent_unit
+        self.typevar_definition_enabled = False
 
     def clone(self, **override) -> 'RenderContext':
         kwargs: typing.Dict[str, typing.Any] = dict(
@@ -26,6 +28,12 @@ class RenderContext:
         if isinstance(node, Reference):
             return self.resolve_ref(self.definitions[node.identifier])
         return node
+
+    @contextlib.contextmanager
+    def enable_typevar_definition(self):
+        self.typevar_definition_enabled = True
+        yield
+        self.typevar_definition_enabled = False
 
 
 class TypeNode:
@@ -104,11 +112,22 @@ class Literal(GlobalTypeNode):
 
 
 class TypeVariable(GlobalTypeNode):
-    def __init__(self, typevar: typing.TypeVar):
+    def __init__(self,
+                 typevar: typing.TypeVar,
+                 condition: TypeNode | None = None,
+                 default: TypeNode | None = None):
         self.typevar = typevar
+        self.condition = condition
+        self.default = default
 
     def render(self, context: RenderContext) -> str:
-        return self.typevar.__name__
+        ret = self.typevar.__name__
+        if context.typevar_definition_enabled:
+            if self.condition is not None:
+                ret = f'{ret} extends {self.condition.render(context)}'
+            if self.default is not None:
+                ret = f'{ret} = {self.default.render(context)}'
+        return ret
 
     def __eq__(self, other):
         return super().__eq__(other)\

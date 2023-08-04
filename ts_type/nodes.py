@@ -86,6 +86,11 @@ class Unknown(GlobalTypeNode):
         return 'unknown'
 
 
+class Never(GlobalTypeNode):
+    def render(self, context: RenderContext) -> str:
+        return 'never'
+
+
 class Literal(GlobalTypeNode):
     def __init__(self, literal: str):
         self.literal = literal
@@ -353,6 +358,40 @@ class NonNullable(UtilityNode):
         super().__init__('NonNullable', [type])
 
 
+class Infer(TypeNode):
+    def __init__(self, typevar: typing.TypeVar):
+        self.typevar = typevar
+
+    def render(self, context: RenderContext) -> str:
+        return f'infer {self.typevar.__name__}'
+
+
+class Conditional(TypeNode):
+    def __init__(self,
+                 type: TypeNode,
+                 condition: TypeNode,
+                 true: TypeNode,
+                 false: TypeNode):
+        self.type = type
+        self.condition = condition
+        self.true = true
+        self.false = false
+
+    def render(self, context: RenderContext):
+        type = self.type.render(context)
+        condition = self.condition.render(context)
+        true = self.true.render(context)
+        false = self.false.render(context)
+        return f'{type} extends {condition} ? {true} : {false}'
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__)\
+            and self.type == other.type\
+            and self.condition == other.condition\
+            and self.true == other.true\
+            and self.false == other.false
+
+
 def _render_with_parenthesis(node: TypeNode, context: RenderContext) -> str:
     expr = node.render(context)
 
@@ -370,15 +409,18 @@ def _render_with_parenthesis(node: TypeNode, context: RenderContext) -> str:
 __all__ = [
     'Array',
     'Boolean',
+    'Conditional',
     'Dict',
     'DictKeyType',
     'Exclude',
     'Extract',
     'GlobalTypeNode',
+    'Infer',
     'Intersection',
     'Keyof',
     'Literal',
     'Lookup',
+    'Never',
     'NonNullable',
     'Null',
     'Number',

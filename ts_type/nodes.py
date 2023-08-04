@@ -32,11 +32,8 @@ class RenderContext:
     def resolve_typevars(self, node: 'TypeNode')\
             -> typing.List['TypeVariable']:
         if isinstance(node, Reference):
-            return self.resolve_typevars(self.resolve_ref(node))
-        elif node is (proxy := node.get_proxy_for_generic_params()):
-            return node.get_generic_params()
-        else:
-            return self.resolve_typevars(proxy)
+            node = self.definitions[node.identifier]
+        return node.get_generic_params()
 
     def render_typevars(
             self,
@@ -238,7 +235,7 @@ class Array(TypeNode):
             and self.of == other.of
 
     def get_proxy_for_generic_params(self) -> 'TypeNode':
-        return self.of
+        return self.of.get_proxy_for_generic_params()
 
 
 class Dict(TypeNode):
@@ -263,7 +260,7 @@ class Dict(TypeNode):
             and self.value == other.value
 
     def get_proxy_for_generic_params(self) -> 'TypeNode':
-        return self.value
+        return self.value.get_proxy_for_generic_params()
 
 
 class Union(DictKeyType):
@@ -336,7 +333,7 @@ class Keyof(DictKeyType):
             and self.of == other.of
 
     def get_proxy_for_generic_params(self) -> 'TypeNode':
-        return self.of
+        return self.of.get_proxy_for_generic_params()
 
 
 class Lookup(DictKeyType):
@@ -354,7 +351,7 @@ class Lookup(DictKeyType):
             and self.lookup == other.lookup
 
     def get_proxy_for_generic_params(self) -> 'TypeNode':
-        return self.node
+        return self.node.get_proxy_for_generic_params()
 
 
 class UtilityNode(TypeNode):
@@ -379,7 +376,7 @@ class Partial(UtilityNode):
         super().__init__('Partial', [type])
 
     def get_proxy_for_generic_params(self) -> 'TypeNode':
-        return self.type
+        return self.type.get_proxy_for_generic_params()
 
 
 class Required(UtilityNode):
@@ -388,7 +385,7 @@ class Required(UtilityNode):
         super().__init__('Required', [type])
 
     def get_proxy_for_generic_params(self) -> 'TypeNode':
-        return self.type
+        return self.type.get_proxy_for_generic_params()
 
 
 class Readonly(UtilityNode):
@@ -397,7 +394,7 @@ class Readonly(UtilityNode):
         super().__init__('Readonly', [type])
 
     def get_proxy_for_generic_params(self) -> 'TypeNode':
-        return self.type
+        return self.type.get_proxy_for_generic_params()
 
 
 class Record(UtilityNode):
@@ -411,7 +408,7 @@ class Pick(UtilityNode):
         super().__init__('Pick', [type, keys])
 
     def get_proxy_for_generic_params(self) -> 'TypeNode':
-        return self.type
+        return self.type.get_proxy_for_generic_params()
 
 
 class Omit(UtilityNode):
@@ -420,7 +417,7 @@ class Omit(UtilityNode):
         super().__init__('Omit', [type, keys])
 
     def get_proxy_for_generic_params(self) -> 'TypeNode':
-        return self.type
+        return self.type.get_proxy_for_generic_params()
 
 
 class Exclude(UtilityNode):
@@ -429,7 +426,7 @@ class Exclude(UtilityNode):
         super().__init__('Exclude', [type, excluded_union])
 
     def get_proxy_for_generic_params(self) -> 'TypeNode':
-        return self.type
+        return self.type.get_proxy_for_generic_params()
 
 
 class Extract(UtilityNode):
@@ -438,7 +435,7 @@ class Extract(UtilityNode):
         super().__init__('Extract', [type, union])
 
     def get_proxy_for_generic_params(self) -> 'TypeNode':
-        return self.type
+        return self.type.get_proxy_for_generic_params()
 
 
 class NonNullable(UtilityNode):
@@ -447,7 +444,7 @@ class NonNullable(UtilityNode):
         super().__init__('NonNullable', [type])
 
     def get_proxy_for_generic_params(self) -> 'TypeNode':
-        return self.type
+        return self.type.get_proxy_for_generic_params()
 
 
 class Infer(TypeNode):

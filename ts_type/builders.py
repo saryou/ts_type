@@ -154,7 +154,8 @@ class NodeBuilder:
             self,
             source: Union[RefSource, type, str],
             define: Callable[[], nodes.TypeNode],
-            generic_params: Optional[Sequence[TypeVar | nodes.TypeVariable]] = None,
+            generic_params: Optional[Sequence[
+                Union[TypeVar, nodes.TypeVariable]]] = None,
             ref_typevars: List[nodes.TypeNode] = []) -> nodes.Reference:
         if isinstance(source, str):
             source = self.RefSource.from_identifier(source)
@@ -173,7 +174,8 @@ class NodeBuilder:
                     type_node = define()
                     if generic_params is not None:
                         type_node.add_generic_params(
-                            [p if isinstance(p, nodes.TypeVariable) else nodes.TypeVariable(p)
+                            [p if isinstance(p, nodes.TypeVariable)
+                             else nodes.TypeVariable(p)
                              for p in generic_params])
                     elif (params := getattr(t, '__parameters__', None)):
                         type_node.add_generic_params(

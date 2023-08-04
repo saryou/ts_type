@@ -29,7 +29,8 @@ class RenderContext:
             return self.resolve_ref(self.definitions[node.identifier])
         return node
 
-    def resolve_typevars(self, node: 'TypeNode') -> typing.List['TypeVariable']:
+    def resolve_typevars(self, node: 'TypeNode')\
+            -> typing.List['TypeVariable']:
         if isinstance(node, Reference):
             return self.resolve_typevars(self.resolve_ref(node))
         elif node is (proxy := node.get_proxy_for_generic_params()):
@@ -148,8 +149,8 @@ class Literal(GlobalTypeNode):
 class TypeVariable(GlobalTypeNode):
     def __init__(self,
                  typevar: typing.TypeVar,
-                 condition: TypeNode | None = None,
-                 default: TypeNode | None = None):
+                 condition: typing.Optional[TypeNode] = None,
+                 default: typing.Optional[TypeNode] = None):
         self.typevar = typevar
         self.condition = condition
         self.default = default

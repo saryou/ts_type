@@ -26,13 +26,14 @@ class RenderContext:
 
     def resolve_ref(self, node: 'TypeNode') -> 'TypeNode':
         if isinstance(node, Reference):
-            return self.resolve_ref(self.definitions[node.identifier])
+            return self.resolve_ref(
+                self.definitions.get(node.identifier, Never()))
         return node
 
     def resolve_typevars(self, node: 'TypeNode')\
             -> typing.List['TypeVariable']:
         if isinstance(node, Reference):
-            node = self.definitions[node.identifier]
+            node = self.definitions.get(node.identifier, Never())
         return node.get_generic_params()
 
     def render_typevars(
@@ -54,6 +55,10 @@ class RenderContext:
         self.typevar_definition_enabled = True
         yield
         self.typevar_definition_enabled = False
+
+
+_empty_context = RenderContext({})
+_empty_context.typevar_definition_enabled = True
 
 
 class TypeNode:
@@ -78,6 +83,12 @@ class TypeNode:
 
     def render(self, context: RenderContext) -> str:
         raise NotImplementedError()
+
+    def __str__(self) -> str:
+        return self.render(_empty_context)
+
+    def __repr__(self) -> str:
+        return f'<{self.__class__}: {self}>'
 
 
 class DictKeyType(TypeNode):

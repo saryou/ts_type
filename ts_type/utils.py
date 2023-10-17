@@ -38,7 +38,7 @@ def _resolve_typevar(
                 args = getattr(b, '__args__', [])
                 if args and len(args) > arg_index:
                     arg = args[arg_index]
-                    assert t not in getattr(arg, '__parameters__', []),\
+                    assert t not in getattr(arg, '__parameters__', []), \
                         'Unsupported usage of generic parameters. '\
                         f'`{t}` has represented other generic type which '\
                         f'contains `{t}` itself (`{arg}` in `{m}`). '\

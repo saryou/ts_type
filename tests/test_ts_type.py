@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime, date, time
 from enum import Enum
-from typing import Union, Literal, List, Set, Tuple, Dict, Optional, TypeVar,\
+from typing import Union, Literal, List, Set, Tuple, Dict, Optional, TypeVar, \
     Generic
 from unittest import TestCase
 

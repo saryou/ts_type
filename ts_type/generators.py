@@ -39,7 +39,7 @@ class TypeDefinitionGenerator:
             assert output_filepath
             output_name = output_name or target.__name__
         _types = self.types[output_filepath]
-        assert output_name not in _types,\
+        assert output_name not in _types, \
             f'{target} {output_filepath} {output_name}'
         _types[output_name] = target
 

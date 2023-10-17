@@ -5,7 +5,7 @@ from enum import Enum
 from contextlib import contextmanager
 from dataclasses import fields as dc_fields, is_dataclass
 from importlib import import_module
-from typing import Optional, Any, Type, Callable, Union, ForwardRef, TypeVar,\
+from typing import Optional, Any, Type, Callable, Union, ForwardRef, TypeVar, \
     Literal, List, Dict, Set, Tuple, cast, Generic, Sequence
 
 from .exceptions import UnknownTypeError

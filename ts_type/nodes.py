@@ -323,7 +323,7 @@ class Intersection(TypeNode):
         return ret
 
     def render(self, context: RenderContext):
-        return ' | '.join([
+        return ' & '.join([
             _render_with_parenthesis(node, context) for node in self.of
         ])
 

@@ -94,10 +94,7 @@ class NodeBuilder:
                 return nodes.Union(of=cast(List[nodes.TypeNode], literals))
             return literals[0]
         elif origin:
-            node = self.type_to_node(origin)
-            if isinstance(node, nodes.Reference):
-                node.typevars = [self.type_to_node(t) for t in args]
-            return node
+            return self.handle_generic_type(t, origin, args)
         elif isinstance(t, str):
             return self.type_to_node(self._resolve_annotation(t))
         elif isinstance(t, TypeVar):
@@ -127,6 +124,15 @@ class NodeBuilder:
                 return self.dataclass_to_node(t)
 
         return self.handle_unknown_type(t)
+
+    def handle_generic_type(self,
+                            t: Any,
+                            origin: type,
+                            args: tuple[Any, ...]) -> nodes.TypeNode:
+        node = self.type_to_node(origin)
+        if isinstance(node, nodes.Reference):
+            node.typevars = [self.type_to_node(t) for t in args]
+        return node
 
     def handle_unknown_type(self, t: Any) -> nodes.TypeNode:
         raise UnknownTypeError(f'Type `{t}` is not supported.')

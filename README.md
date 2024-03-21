@@ -118,8 +118,8 @@ type ResponseForApiB = Extract<Apis, {url: "/api/b"}>['request'];
 
 ## Basic Usage
 
-1. add types to `TypeDefinitionGenerator`. (you can use `ts_type.generator`, which is an instance of the class)
-2. call `TypeDefinitionGenerator.generate`
+1. Add types to `TypeDefinitionGenerator` with `add` method. (You can use `ts_type.generator`, which is an instance of the class. `ts_type.gen_type` is a shortcut of `ts_type.generator.add`)
+2. Call `TypeDefinitionGenerator.generate`
 
 ```py3
 from dataclasses import dataclass
@@ -153,10 +153,12 @@ class Builder(ts.NodeBuilder):
         if isinstance(t, type):
             if issubclass(t, cl.Cleaned):
                 return self.define_cleaned(t)
+            if issubclass(t, cl.Undefined):
+                return ts.Undefined()
         return super().handle_unknown_type(t)
 
     def define_cleaned(self,
-                       t: Type[cl.Cleaned],
+                       t: type[cl.Cleaned],
                        exclude: set[str] = set()) -> ts.TypeNode:
         ret: ts.TypeNode = self.define_ref_node(t, lambda: ts.Object(
             attrs={
@@ -171,7 +173,7 @@ class Builder(ts.NodeBuilder):
 
         return ret
 
-    def field_to_type(self, t: cl.Field) -> Type:
+    def field_to_type(self, t: cl.Field) -> type:
         if isinstance(t, cl.OptionalField):
             vt = self.field_to_type(t.field)
             return Union[None, cl.Undefined, vt]

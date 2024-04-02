@@ -6,7 +6,9 @@ from contextlib import contextmanager
 from dataclasses import fields as dc_fields, is_dataclass
 from importlib import import_module
 from typing import Optional, Any, Type, Callable, Union, ForwardRef, TypeVar, \
-    Literal, List, Dict, Set, Tuple, cast, Generic, Sequence
+    Literal, List, Dict, Set, Tuple, cast, Generic
+from collections.abc import Sequence, MutableSequence, Mapping, \
+    MutableMapping, Set as AbstractSet, MutableSet
 
 from .exceptions import UnknownTypeError
 from .utils import resolve_typevar
@@ -77,10 +79,11 @@ class NodeBuilder:
             assert args
             return nodes.Tuple(
                 [self.type_to_node(a) for a in args])
-        elif origin is list or origin is set:
+        elif origin in [list, set, Sequence, MutableSequence,
+                        AbstractSet, MutableSet]:
             assert args
             return nodes.Array(self.type_to_node(args[0]))
-        elif origin is dict:
+        elif origin in [dict, Mapping, MutableMapping]:
             assert len(args) > 1
             key = self.type_to_node(args[0])
             assert isinstance(key, nodes.DictKeyType)

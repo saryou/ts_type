@@ -6,7 +6,10 @@ from contextlib import contextmanager
 from dataclasses import fields as dc_fields, is_dataclass
 from importlib import import_module
 from typing import Optional, Any, Type, Callable, Union, ForwardRef, TypeVar, \
-    Literal, List, Dict, Set, Tuple, cast, Generic, Sequence
+    Literal, List, Dict, Set, Tuple, cast, Generic
+from typing import _TypedDictMeta  # type: ignore
+from collections.abc import Sequence, MutableSequence, Mapping, \
+    MutableMapping, Set as AbstractSet, MutableSet
 
 from .exceptions import UnknownTypeError
 from .utils import resolve_typevar
@@ -24,6 +27,19 @@ try:
 except ImportError:
     def _is_union_type(t: Any) -> bool:
         return False
+
+
+try:
+    from typing import TypeAliasType  # type: ignore
+
+    def _resolve_type_alias_type(t: Any) -> Any:
+        if isinstance(t, TypeAliasType):
+            return _resolve_type_alias_type(t.__value__)
+        else:
+            return t
+except ImportError:
+    def _resolve_type_alias_type(t: Any) -> Any:
+        return t
 
 
 class NodeBuilder:
@@ -61,6 +77,8 @@ class NodeBuilder:
         return '\n\n'.join([render(k) for k in ref_names])
 
     def type_to_node(self, t: Any) -> nodes.TypeNode:
+        t = _resolve_type_alias_type(t)
+
         if t in [None, type(None)]:
             return nodes.Null()
 
@@ -77,10 +95,11 @@ class NodeBuilder:
             assert args
             return nodes.Tuple(
                 [self.type_to_node(a) for a in args])
-        elif origin is list or origin is set:
+        elif origin in [list, set, Sequence, MutableSequence,
+                        AbstractSet, MutableSet]:
             assert args
             return nodes.Array(self.type_to_node(args[0]))
-        elif origin is dict:
+        elif origin in [dict, Mapping, MutableMapping]:
             assert len(args) > 1
             key = self.type_to_node(args[0])
             assert isinstance(key, nodes.DictKeyType)
@@ -122,6 +141,8 @@ class NodeBuilder:
                 return self.enum_to_node(t)
             elif is_dataclass(t):
                 return self.dataclass_to_node(t)
+            elif isinstance(t, _TypedDictMeta):
+                return self.typeddict_to_node(t)
 
         return self.handle_unknown_type(t)
 
@@ -208,6 +229,12 @@ class NodeBuilder:
                 attrs={f.name: self.type_to_node(f.type)
                        for f in dc_fields(dc)},
                 omissible=set()))
+
+    def typeddict_to_node(self, t: _TypedDictMeta) -> nodes.TypeNode:
+        return self.define_ref_node(t, lambda: nodes.Object(
+            attrs={k: self.type_to_node(v)
+                   for k, v in t.__annotations__.items()},
+            omissible=t.__optional_keys__))
 
     @contextmanager
     def _begin_module_context(self, t: Optional[Type]):

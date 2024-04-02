@@ -7,6 +7,7 @@ from dataclasses import fields as dc_fields, is_dataclass
 from importlib import import_module
 from typing import Optional, Any, Type, Callable, Union, ForwardRef, TypeVar, \
     Literal, List, Dict, Set, Tuple, cast, Generic
+from typing import _TypedDictMeta  # type: ignore
 from collections.abc import Sequence, MutableSequence, Mapping, \
     MutableMapping, Set as AbstractSet, MutableSet
 
@@ -140,6 +141,8 @@ class NodeBuilder:
                 return self.enum_to_node(t)
             elif is_dataclass(t):
                 return self.dataclass_to_node(t)
+            elif isinstance(t, _TypedDictMeta):
+                return self.typeddict_to_node(t)
 
         return self.handle_unknown_type(t)
 
@@ -226,6 +229,12 @@ class NodeBuilder:
                 attrs={f.name: self.type_to_node(f.type)
                        for f in dc_fields(dc)},
                 omissible=set()))
+
+    def typeddict_to_node(self, t: _TypedDictMeta) -> nodes.TypeNode:
+        return self.define_ref_node(t, lambda: nodes.Object(
+            attrs={k: self.type_to_node(v)
+                   for k, v in t.__annotations__.items()},
+            omissible=t.__optional_keys__))
 
     @contextmanager
     def _begin_module_context(self, t: Optional[Type]):

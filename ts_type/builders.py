@@ -28,6 +28,19 @@ except ImportError:
         return False
 
 
+try:
+    from typing import TypeAliasType  # type: ignore
+
+    def _resolve_type_alias_type(t: Any) -> Any:
+        if isinstance(t, TypeAliasType):
+            return _resolve_type_alias_type(t.__value__)
+        else:
+            return t
+except ImportError:
+    def _resolve_type_alias_type(t: Any) -> Any:
+        return t
+
+
 class NodeBuilder:
     """NodeBuilder converts python objects to typescript's types."""
 
@@ -63,6 +76,8 @@ class NodeBuilder:
         return '\n\n'.join([render(k) for k in ref_names])
 
     def type_to_node(self, t: Any) -> nodes.TypeNode:
+        t = _resolve_type_alias_type(t)
+
         if t in [None, type(None)]:
             return nodes.Null()
 

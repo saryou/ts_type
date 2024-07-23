@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from dataclasses import fields as dc_fields, is_dataclass
 from importlib import import_module
 from typing import Optional, Any, Type, Callable, Union, ForwardRef, TypeVar, \
-    Literal, List, Dict, Set, Tuple, cast, Generic, Never
+    Literal, List, Dict, Set, Tuple, cast, Generic
 from typing import _TypedDictMeta  # type: ignore
 from collections.abc import Sequence, MutableSequence, Mapping, \
     MutableMapping, Set as AbstractSet, MutableSet
@@ -27,6 +27,22 @@ try:
 except ImportError:
     def _is_union_type(t: Any) -> bool:
         return False
+
+
+try:
+    from typing import Never  # type: ignore
+
+    def _is_never_type(t: Any) -> bool:
+        return t is Never
+except ImportError:
+    try:
+        from typing_extensions import Never  # type: ignore
+
+        def _is_never_type(t: Any) -> bool:
+            return t is Never
+    except ImportError:
+        def _is_never_type(t: Any) -> bool:
+            return False
 
 
 try:
@@ -143,7 +159,7 @@ class NodeBuilder:
                 return self.dataclass_to_node(t)
             elif isinstance(t, _TypedDictMeta):
                 return self.typeddict_to_node(t)
-        elif t is Never:
+        elif _is_never_type(t):
             return nodes.Never()
 
         return self.handle_unknown_type(t)

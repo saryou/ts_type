@@ -140,7 +140,11 @@ class NodeBuilder:
             return self.type_to_node(_t)
         elif isinstance(t, ForwardRef):
             _globals = self._current_module.__dict__
-            evaluated = t._evaluate(_globals, None, set())  # type: ignore
+            try:
+                evaluated = t._evaluate(_globals, None, set(),  # type: ignore
+                                        recursive_guard=set())  # type: ignore
+            except TypeError:
+                evaluated = t._evaluate(_globals, None, set())  # type: ignore
             return self.type_to_node(evaluated)
         elif isinstance(t, NodeCompatible):
             return t.convert_to_node(self)

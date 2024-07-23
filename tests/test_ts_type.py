@@ -25,6 +25,16 @@ class Tests(TestCase):
         self.assertIsInstance(builder.type_to_node(int), ts.Number)
         self.assertIsInstance(builder.type_to_node(float), ts.Number)
 
+        try:
+            from typing import Never  # type: ignore
+            self.assertIsInstance(builder.type_to_node(Never), ts.Never)
+        except ImportError:
+            try:
+                from typing_extensions import Never  # type: ignore
+                self.assertIsInstance(builder.type_to_node(Never), ts.Never)
+            except Exception:
+                pass
+
     def test_literals(self):
         builder = ts.NodeBuilder()
 

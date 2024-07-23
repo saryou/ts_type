@@ -30,6 +30,22 @@ except ImportError:
 
 
 try:
+    from typing import Never  # type: ignore
+
+    def _is_never_type(t: Any) -> bool:
+        return t is Never
+except ImportError:
+    try:
+        from typing_extensions import Never  # type: ignore
+
+        def _is_never_type(t: Any) -> bool:
+            return t is Never
+    except ImportError:
+        def _is_never_type(t: Any) -> bool:
+            return False
+
+
+try:
     from typing import TypeAliasType  # type: ignore
 
     def _resolve_type_alias_type(t: Any) -> Any:
@@ -124,7 +140,11 @@ class NodeBuilder:
             return self.type_to_node(_t)
         elif isinstance(t, ForwardRef):
             _globals = self._current_module.__dict__
-            evaluated = t._evaluate(_globals, None, set())  # type: ignore
+            try:
+                evaluated = t._evaluate(_globals, None, set(),  # type: ignore
+                                        recursive_guard=set())  # type: ignore
+            except TypeError:
+                evaluated = t._evaluate(_globals, None, set())  # type: ignore
             return self.type_to_node(evaluated)
         elif isinstance(t, NodeCompatible):
             return t.convert_to_node(self)
@@ -143,6 +163,8 @@ class NodeBuilder:
                 return self.dataclass_to_node(t)
             elif isinstance(t, _TypedDictMeta):
                 return self.typeddict_to_node(t)
+        elif _is_never_type(t):
+            return nodes.Never()
 
         return self.handle_unknown_type(t)
 

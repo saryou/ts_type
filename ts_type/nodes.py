@@ -245,15 +245,20 @@ class Tuple(TypeNode):
 
 
 class Array(TypeNode):
-    def __init__(self, of: TypeNode):
+    def __init__(self,
+                 of: TypeNode,
+                 readonly: typing.Optional[bool] = False):
         self.of = of
+        self.readonly = readonly
 
     def render(self, context: RenderContext):
-        return _render_with_parenthesis(self.of, context) + '[]'
+        return ('readonly ' if self.readonly else '')\
+            + _render_with_parenthesis(self.of, context) + '[]'
 
     def __eq__(self, other):
         return isinstance(other, Array)\
-            and self.of == other.of
+            and self.of == other.of\
+            and self.readonly == other.readonly
 
     def get_proxy_for_generic_params(self) -> 'TypeNode':
         return self.of.get_proxy_for_generic_params()

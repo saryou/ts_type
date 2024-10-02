@@ -198,26 +198,36 @@ class Reference(DictKeyType):
 class Object(TypeNode):
     def __init__(self,
                  attrs: typing.Dict[str, TypeNode],
-                 omissible: typing.Optional[typing.Set[str]] = None):
+                 omissible: typing.Optional[typing.Set[str]] = None,
+                 readonly: typing.Optional[typing.Set[str]] = None):
         self.attrs = attrs
         self.omissible = omissible or set()
+        self.readonly = readonly or set()
 
     def render(self, context: RenderContext) -> str:
         c = context.clone(indent_level=context.indent_level + 1)
         return '\n'.join([
             '{',
-            *[f'{c.indent}"{k}"{self._omissible_sign(k)}: {v.render(c)};'
-              for k, v in self.attrs.items()],
+            *[
+                ''.join([
+                    c.indent,
+                    'readonly ' if k in self.readonly else '',
+                    f'"{k}"',
+                    '?' if k in self.omissible else '',
+                    ': ',
+                    v.render(c),
+                    ';'
+                ])
+                for k, v in self.attrs.items()
+            ],
             f'{context.indent}}}',
         ])
-
-    def _omissible_sign(self, key: str) -> str:
-        return '?' if key in self.omissible else ''
 
     def __eq__(self, other):
         return isinstance(other, Object)\
             and self.attrs == other.attrs\
-            and self.omissible == other.omissible
+            and self.omissible == other.omissible\
+            and self.readonly == other.readonly
 
 
 class Tuple(TypeNode):

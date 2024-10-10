@@ -1,5 +1,5 @@
 from types import GenericAlias
-from typing import Optional, Any, TypeVar, List, Tuple
+from typing import Optional, Any, TypeVar, List, Tuple, Generic
 
 
 def resolve_typevar(cls: type, t: TypeVar) -> type:
@@ -9,6 +9,10 @@ def resolve_typevar(cls: type, t: TypeVar) -> type:
     resolve actual type. I think this approach depends on internal
     implementations so it is fairly experimental.
     """
+
+    if (ret := _resolve_bound_type(cls, t)) != cls:
+        return ret
+
     return _resolve_typevar(cls, t, 0)
 
 
@@ -61,6 +65,31 @@ def _find_typevar(mro: List[type], t: TypeVar) -> Optional[Tuple[int, int]]:
                 if p == t:
                     return (i, _i)
     return None
+
+
+_T = TypeVar('_T')
+
+
+class _Generic(Generic[_T]):
+    pass
+
+
+_GENERIC_ALIAS_TYPE = type(_Generic[int])
+
+
+def _resolve_bound_type(bound: Any, t: TypeVar) -> Any:
+    if isinstance(bound, _GENERIC_ALIAS_TYPE):
+        org = getattr(bound, '__origin__', None)
+        args = getattr(bound, '__args__', None)
+        if org and args:
+            for arg, tv in zip(args, getattr(org, '__parameters__', [])):
+                if tv == t:
+                    return arg
+        if isinstance(org, _GENERIC_ALIAS_TYPE):
+            return _resolve_bound_type(org, t)
+        if isinstance(org, type):
+            return _resolve_typevar(org, t, 0)
+    return bound
 
 
 __all__ = [

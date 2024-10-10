@@ -338,6 +338,30 @@ class Tests(TestCase):
             ts.TypeVariable(W),
         ])
 
+    def test_resolve_typevar(self):
+        @dataclass
+        class B(Generic[T, U, V]):
+            t: T
+            u: U
+            v: V
+
+        class C(B[int, T, U]):
+            pass
+
+        class D(C[int, T]):
+            pass
+
+        bound_b = B[int, str, bool]
+        bound_c = C[str, int]
+        bound_d = D[bool]
+
+        self.assertEqual(ts.resolve_typevar(bound_b, T), int)
+        self.assertEqual(ts.resolve_typevar(bound_b, U), str)
+        self.assertEqual(ts.resolve_typevar(bound_b, V), bool)
+        self.assertEqual(ts.resolve_typevar(bound_c, T), str)
+        self.assertEqual(ts.resolve_typevar(bound_c, U), int)
+        self.assertEqual(ts.resolve_typevar(bound_d, T), bool)
+
 
 @dataclass
 class RecursiveA:

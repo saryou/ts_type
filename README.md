@@ -272,7 +272,7 @@ type __main____RequestForApiB__Item = {
 
 You can use it to extract request and response types from url.
 
-```
+```typescript
 type RequestForApiA = Extract<Apis, {url: "/api/a"}>['request'];
 type ResponseForApiA = Extract<Apis, {url: "/api/a"}>['request'];
 type RequestForApiB = Extract<Apis, {url: "/api/b"}>['request'];

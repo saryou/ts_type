@@ -45,7 +45,7 @@ pip install ts-type
 ```
 
 
-### Generating TypeScript Types from Python Models
+### Generating TypeScript Definitions from Python Models
 
 To use `ts_type`, follow these steps:
 
@@ -87,7 +87,7 @@ Execute the script to generate TypeScript types:
 python codegen.py
 ```
 
-This will generate output_dir/example.gen.ts with the following content:
+This will generate `output_dir/example.gen.ts` with the following content:
 
 ```typescript
 export type MyCustomType = example__MyCustomType;
@@ -103,9 +103,7 @@ type example__MyCustomType = {
 
 ### Support Custom Types
 
-You can customize the builder to support any objects, including third-party libraries.  
-For example, if you are using the [`cleaned`](https://github.com/saryou/cleaned) library for request validation,  
-you can define a custom builder as follows:
+You can customize the builder to support any objects, including third-party libraries. For example, if you are using the [`cleaned`](https://github.com/saryou/cleaned) library (**which, let's be honest, might only be me using it 😇**) for request validation, you can define a custom builder as follows:
 
 ```python3
 class Builder(ts.NodeBuilder):
@@ -156,11 +154,11 @@ class Builder(ts.NodeBuilder):
                 t.__class__,
                 cl.Field.__parameters__[0])
 
-# don't forget to pass the builder to generator
+# Don't forget to pass the builder to the generator
 ts.generator.generate(output_dir, builder_cls=Builder)
 ```
 
-### Generating TypeScript Types from API Models
+### Generating TypeScript Definitions from API Models
 
 Below is an example demonstrating how `ts_type` can generate TypeScript type definitions for API request/response models:
 
@@ -240,8 +238,8 @@ ts.generator.generate('output_dir')
 
 #### 3. Expected Output
 
-This will generate TypeScript types as follows:
-
+Running the script will generate the following TypeScript definitions:
+ 
 ```typescript
 export type Apis = {
     "url": "/api/a";

@@ -31,8 +31,6 @@ you can retrieve those type definitions and generate a union of API types effort
   Reduce runtime errors caused by incorrect API usage.
 - **Improve Developer Productivity**  
   No need to manually write or update TypeScript types for API responses.
-- **Seamless Integration**  
-  Works well with Python frameworks like FastAPI and Django REST Framework.
 
 ## How To Use
 

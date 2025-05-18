@@ -4,6 +4,7 @@ from datetime import datetime, date, time
 from enum import Enum
 from contextlib import contextmanager
 from dataclasses import fields as dc_fields, is_dataclass
+from decimal import Decimal
 from importlib import import_module
 from typing import Optional, Any, Type, Callable, Union, ForwardRef, TypeVar, \
     Literal, List, Dict, Set, Tuple, cast, Generic
@@ -155,7 +156,7 @@ class NodeBuilder:
                 return nodes.String()
             elif issubclass(t, bool):
                 return nodes.Boolean()
-            elif issubclass(t, (int, float)):
+            elif issubclass(t, (int, float, Decimal)):
                 return nodes.Number()
             elif issubclass(t, Enum):
                 return self.enum_to_node(t)
